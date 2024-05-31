@@ -5,6 +5,8 @@ version = "0.1.0"
 
 [deps]
 IntervalArithmetic = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
+TermInterface = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
 
 [compat]
 IntervalArithmetic = "0.22.12"
+TermInterface = "0.4.1"
