@@ -4,19 +4,10 @@ using IntervalArithmetic: interval, bounds, isthin, mid
 
 export evaluate_exact, accuracy
 
-precision_convert(::Type{T}, x) where T = convert(T,x)
-precision_convert(t::T, x) where T<:Real = convert(T,x)
-precision_convert(t::BigFloat, x) = BigFloat(x,precision=t.prec)
-
-function floattype(xs::Number...)
-    number_types = unique(typeof.(xs))
-    @assert length(number_types) <= 2
-    filter(t->!(t <: Integer), number_types) |> first
-end
-initprec(xs...) = precision(floattype(xs...)) + 1
 
 function evaluate_exact(f, args::Union{<:Number,Int}...; init_precision=initprec(args...), max_precision=500)
-    # @assert that args are either Number or Int
+
+    # need to check precision on values here, because BigFloat does not have precision in type
     @assert length(unique(precision.(filter(a->!(a isa Integer), args)))) == 1 "All inputs must have same precision!"
 
     # compute interval for higher precision
@@ -29,6 +20,7 @@ function evaluate_exact(f, args::Union{<:Number,Int}...; init_precision=initprec
     T = floattype(args...)
     (a,b) = bounds(precision_interval)
     result_interval = setprecision(precision(T)) do
+        # FIXME: is this the correct way of getting the target precision interval?
         interval(BigFloat(round(a, RoundDown)), BigFloat(round(b, RoundUp)))
     end
 
@@ -36,7 +28,6 @@ function evaluate_exact(f, args::Union{<:Number,Int}...; init_precision=initprec
     new_precision = init_precision * 2
     if isthin(result_interval) || new_precision > max_precision
         precision_convert(T, mid(result_interval))
-        #mid(result_interval)
     else
         evaluate_exact(f, args..., init_precision=new_precision)
     end
@@ -54,6 +45,33 @@ function evaluate_exact(x::Symbol, points::Tuple{Symbol,<:Number}...)
 end
 evaluate_exact(x::Number, points) = x
 
+
+function accuracy(f, args::T...; kw...) where T
+    setprecision(precision(args[1])) do
+        abs(f(args...) - evaluate_exact(f, args..., kw...))
+    end
+end
+
+function all_subexpressions(expr)
+    subs = if iscall(expr)
+        vcat([expr], reduce(vcat, all_subexpressions.(arguments(expr))))
+    else
+        [expr]
+    end
+    unique(subs)
+end
+
+local_error(x::Number, point::Tuple{Symbol,<:Number}...) = 0
+local_error(x::Symbol, point::Tuple{Symbol,<:Number}...) = 0
+
+function local_error(expr, point::Tuple{Symbol,<:Number}...)
+    exact_args = collect(evaluate_exact(a, point...) for a in arguments(expr))
+    localf = iscall(expr) ? eval(operation(expr)) : error("not a call")
+    approx_result = localf(exact_args...)
+    exact_result = evaluate_exact(localf, exact_args...)
+    abs(approx_result - exact_result)
+end
+
 function lambdify(expr, args...)
     # TODO: surely there is a better way of doing this
     # TODO: look at DynamicExpressions.jl ? 
@@ -63,12 +81,17 @@ function lambdify(expr, args...)
     g
 end
 
+precision_convert(::Type{T}, x) where T = convert(T,x)
+precision_convert(t::T, x) where T<:Real = convert(T,x)
+precision_convert(t::BigFloat, x) = BigFloat(x,precision=t.prec)
 
-function accuracy(f, args::T...; kw...) where T
-    setprecision(precision(args[1])) do
-        abs(f(args...) - evaluate_exact(f, args..., kw...))
-    end
+function floattype(xs::Number...)
+    number_types = unique(typeof.(xs))
+    @assert length(number_types) <= 2
+    filter(t->!(t <: Integer), number_types) |> first
 end
+initprec(xs...) = precision(floattype(xs...)) + 1
+
 
 
 end # module OptiFloat

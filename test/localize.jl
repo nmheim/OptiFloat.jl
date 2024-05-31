@@ -39,26 +39,6 @@ function sample(x::Dict{Symbol,<:Interval}, batchsize::Int)
     (zip(keys(x), p) for p in zip(values(dict)...))
 end
 
-function all_subexpressions(expr)
-    subs = if iscall(expr)
-        vcat([expr], reduce(vcat, all_subexpressions.(arguments(expr))))
-    else
-        [expr]
-    end
-    unique(subs)
-end
-
-local_error(x::Number, point::Tuple{Symbol,<:Number}...) = 0
-local_error(x::Symbol, point::Tuple{Symbol,<:Number}...) = 0
-
-function local_error(expr, point::Tuple{Symbol,<:Number}...)
-    exact_args = collect(evaluate_exact(a, point...) for a in arguments(expr))
-    localf = iscall(expr) ? eval(operation(expr)) : error("not a call")
-    approx_result = localf(exact_args...)
-    exact_result = evaluate_exact(localf, exact_args...)
-    abs(approx_result - exact_result)
-end
-
 function local_error(expr, intervals, batchsize=100)
     points = sample(intervals, batchsize)
     map(points) do point
