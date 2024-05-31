@@ -1,5 +1,6 @@
 module OptiFloat
 
+using TermInterface
 using IntervalArithmetic: interval, bounds, isthin, mid
 
 export evaluate_exact, accuracy
@@ -37,11 +38,8 @@ function evaluate_exact(expr::Expr, point::Tuple{Symbol,<:Number}...)
     g = lambdify(expr, inputs...)
     evaluate_exact(g, values...)
 end
-function evaluate_exact(x::Symbol, points::Tuple{Symbol,<:Number}...)
-    for (s,v) in points
-        s==x && return v
-    end
-    error("Symbol $x not found in input points.")
+function evaluate_exact(x::Symbol, point::Tuple{Symbol,<:Number}...)
+    Dict(k=>v for (k,v) in point)[x]
 end
 evaluate_exact(x::Number, points) = x
 

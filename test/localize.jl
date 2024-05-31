@@ -1,6 +1,7 @@
 using TermInterface
 using IntervalArithmetic
 using OptiFloat
+using OptiFloat: all_subexpressions, local_error
 
 #expr = :(a + b * (c + a))
 expr = :(a + b)
@@ -39,14 +40,13 @@ function sample(x::Dict{Symbol,<:Interval}, batchsize::Int)
     (zip(keys(x), p) for p in zip(values(dict)...))
 end
 
-function local_error(expr, intervals, batchsize=100)
-    points = sample(intervals, batchsize)
-    map(points) do point
-        local_error(expr, point...)
-    end
-end
+# function local_error(expr, intervals, batchsize=100)
+#     points = sample(intervals, batchsize)
+#     map(points) do point
+#         local_error(expr, point...)
+#     end
+# end
 
 
-# this should not return all zeros... something wrong with how
-# evaluate_exact/localf are computed in local_error....
+# does not return errors that sum to evaluate_exact(f,x) - f(x)
 map(e->local_error(e,(:x,x)), all_subexpressions(expr))
