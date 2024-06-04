@@ -1,6 +1,8 @@
 using TermInterface: maketerm, iscall, arguments, operation
 using IntervalArithmetic: interval, bounds, isthin, mid
 
+const Point{syms,N,T} = NamedTuple{syms, <:NTuple{N,T}} where {syms,N,T<:Real}
+
 function evaluate_exact(f, args::Union{<:Number,Int}...; init_precision=initprec(args...), max_precision=500)
 
     # need to check precision on values here, because BigFloat does not have precision in type
@@ -23,16 +25,15 @@ function evaluate_exact(f, args::Union{<:Number,Int}...; init_precision=initprec
         evaluate_exact(f, args..., init_precision=new_precision)
     end
 end
-function evaluate_exact(expr::Expr, point::Tuple{Symbol,<:Number}...; kw...)
-    inputs, values = zip(point...)
-    g = lambdify(expr, inputs...)
-    evaluate_exact(g, values...; kw...)
-end
-function evaluate_exact(x::Symbol, point::Tuple{Symbol,<:Number}...; kw...)
-    Dict(k=>v for (k,v) in point)[x]
-end
-evaluate_exact(x::Number, point...; kw...) = x
 
+function evaluate_exact(expr::Expr, point::Point; kw...)
+    g = lambdify(expr, keys(point)...)
+    evaluate_exact(g, values(point)...; kw...)
+end
+evaluate_exact(x::Symbol, p::Point; kw...) = p[x]
+evaluate_exact(x::Number, p::Point; kw...) = x
+
+evaluate(expr, point::Point) = lambdify(expr, keys(point)...)(values(point)...)
 
 function accuracy(f, args::T...; kw...) where T
     setprecision(precision(args[1])) do
@@ -49,14 +50,14 @@ function all_subexpressions(expr)
     unique(subs)
 end
 
-local_error(x::Number, point::Tuple{Symbol,<:Number}...) = 0
-local_error(x::Symbol, point::Tuple{Symbol,<:Number}...) = 0
+local_error(x::Number, point::Point) = 0
+local_error(x::Symbol, point::Point) = 0
 
-function local_error(expr, point::Tuple{Symbol,T}...) where T<:Number
+function local_error(expr, point::Point{syms,N,T}) where {syms,N,T}
     localf = iscall(expr) ? eval(operation(expr)) : error("not a call")
 
     # each BigFloat from evaluate_exact might have different precision
-    exact_args = [evaluate_exact(a, point...) for a in arguments(expr)]
+    exact_args = [evaluate_exact(a, point) for a in arguments(expr)]
     prec = maximum(precision(a) for a in exact_args if !(a isa Int))
 
     approx_args = convert(Vector{T}, exact_args)
@@ -77,11 +78,6 @@ function lambdify(expr, args...)
     f = eval(fexpr)
     g(xs...) = Base.invokelatest(f, xs...)
     g
-end
-
-function evaluate(expr, point::Tuple{Symbol,<:Number}...)
-    (ks, vals) = zip(point...)
-    lambdify(expr, ks...)(vals...)
 end
 
 precision_convert(::Type{T}, x) where T = convert(T,x)

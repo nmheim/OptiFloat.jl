@@ -7,7 +7,9 @@ using OptiFloat: all_subexpressions, local_error, evaluate_exact, evaluate
 expr = :(x + 1 - x)
 T = Float16
 x = T(5.13e3)
-point = (:x,x)
+point = (;x=x)
+evaluate_exact(expr, point)
+
 d = Dict(e => local_error(e,point) for e in all_subexpressions(expr))
 target = Dict(
     1              => 0,
