@@ -1,34 +1,29 @@
 using TermInterface
 using IntervalArithmetic
 using OptiFloat
-using OptiFloat: all_subexpressions, local_error, evaluate_exact
+using OptiFloat: all_subexpressions, local_error, evaluate_exact, evaluate
 
-expr = :((1 / (x+1) - (2/x)) + (1/x+1))
-#expr = :(1 / (x+1) - (2/x))
-f(x) = (1/(x-1) - 2/x) + (1/x+1)
 
 expr = :(x + 1 - x)
-f(x) = x+1-x
 T = Float16
-x = T(5e3)
+x = T(5.13e3)
+point = (:x,x)
+d = Dict(e => local_error(e,point) for e in all_subexpressions(expr))
+target = Dict(
+    1              => 0,
+    :(x + 1)       => 1.0,
+    :((x + 1) - x) => 1.0,
+    :x             => 0,
+)
+@assert d == target
 
-point = ((:x,x),)
-exact_args = collect(evaluate_exact(a, point...) for a in arguments(expr))
-approx_args = convert(Vector{T}, exact_args)
-localf = iscall(expr) ? eval(operation(expr)) : error("not a call")
-exact_result = localf(exact_args...)
-approx_result = localf(approx_args...)
-#exact_result = evaluate_exact(localf, exact_args...)
-localf(exact_args...)
-abs(approx_result - exact_result) |> typeof
 
-
-# hmm, seems to identify the wrong operation as error prone
-# also why is there 1/x in all_subexpressions
-Dict(e => local_error(e,(:x,x)) for e in all_subexpressions(expr))
-
-abs(evaluate_exact(f,x) - f(x))
-
+expr = :((1 / (x+1) - (2/x)) + (1/x+1))
+g(x) = 2/(x^3-x)
+evaluate_exact(expr, point)
+evaluate(expr, point)
+#expr = :(1 / (x+1) - (2/x))
+d = Dict(e => local_error(e,point) for e in all_subexpressions(expr))
 
 #########################################################################
 

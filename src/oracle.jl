@@ -10,25 +10,13 @@ function evaluate_exact(f, args::Union{<:Number,Int}...; init_precision=initprec
     precision_interval, precision_interval_is_thin = setprecision(init_precision) do
         intervals = interval.(BigFloat.(args))
         y = f(intervals...)
-        @info intervals f args f(args...) y bounds(y) bounds(y)[1].prec isthin(y)
         y, isthin(y)
     end
 
-    # round to target precision
-    T = floattype(args...)
-    #(a,b) = bounds(precision_interval)
-    #result_interval = setprecision(precision(T)) do
-    #    # FIXME: is this the correct way of getting the target precision interval?
-    #    interval(BigFloat(round(a, RoundDown)), BigFloat(round(b, RoundUp)))
-    #    #interval(BigFloat(round(a)), BigFloat(round(b)))
-    #end
-
     # check if we found an interval that only contains one number 𝑅𝑝(𝑦1) = 𝑦∗ = 𝑅𝑝(𝑦2)
     new_precision = init_precision * 2
-    @info new_precision
-    if precision_interval_is_thin || new_precision > max_precision
-        #precision_convert(T, mid(precision_interval))
-        setprecision(new_precision) do
+    if isthin(precision_interval) || new_precision > max_precision
+        setprecision(init_precision) do
             mid(precision_interval)
         end
     else
@@ -64,12 +52,22 @@ end
 local_error(x::Number, point::Tuple{Symbol,<:Number}...) = 0
 local_error(x::Symbol, point::Tuple{Symbol,<:Number}...) = 0
 
-function local_error(expr, point::Tuple{Symbol,<:Number}...)
-    exact_args = collect(evaluate_exact(a, point...) for a in arguments(expr))
+function local_error(expr, point::Tuple{Symbol,T}...) where T<:Number
     localf = iscall(expr) ? eval(operation(expr)) : error("not a call")
-    approx_result = localf(exact_args...)
-    exact_result = evaluate_exact(localf, exact_args...)
-    abs(approx_result - exact_result)
+
+    # each BigFloat from evaluate_exact might have different precision
+    exact_args = [evaluate_exact(a, point...) for a in arguments(expr)]
+    prec = maximum(precision(a) for a in exact_args if !(a isa Int))
+
+    approx_args = convert(Vector{T}, exact_args)
+    approx_result = localf(approx_args...)
+
+    err = setprecision(prec) do 
+        exact_args = [BigFloat(x,prec) for x in exact_args]
+        exact_result = evaluate_exact(localf, exact_args...)
+        abs(approx_result - exact_result)
+    end
+    convert(T, err)
 end
 
 function lambdify(expr, args...)
@@ -79,6 +77,11 @@ function lambdify(expr, args...)
     f = eval(fexpr)
     g(xs...) = Base.invokelatest(f, xs...)
     g
+end
+
+function evaluate(expr, point::Tuple{Symbol,<:Number}...)
+    (ks, vals) = zip(point...)
+    lambdify(expr, ks...)(vals...)
 end
 
 precision_convert(::Type{T}, x) where T = convert(T,x)

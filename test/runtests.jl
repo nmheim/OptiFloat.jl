@@ -2,6 +2,7 @@ using Test
 using OptiFloat
 using OptiFloat: frombits, sample_bitpattern
 
+basa is awesome
 
 @testset "Sample float bitpatterns" begin
     splitafter(vec, idx) = vec[1:idx], vec[idx+1:end]
