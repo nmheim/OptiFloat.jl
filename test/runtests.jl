@@ -1,16 +1,24 @@
-using IntervalArithmetic
+using Test
 using OptiFloat
+using OptiFloat: frombits, sample_bitpattern
 
-f(x,y)= x^y / (x^y + 2)
 
-args = Float16.((3.0,1.1))
-args = Float16.((-1.1, 7.0))
+@testset "Sample float bitpatterns" begin
+    splitafter(vec, idx) = vec[1:idx], vec[idx+1:end]
+    floats = [Float16, Float32, Float64]
 
-input_precision = 4
-args = BigFloat.((big"-1.1", big"7.0"), precision=input_precision)
+    for T in floats
+        for x in rand(-maxintfloat(T):maxintfloat(T), 20)
+            b = bitstring(x)
+            (n_sign, n_expo, _) = OptiFloat._bits(T)
+            sign, rest = splitafter(b, n_sign)
+            expo, mant = splitafter(rest, n_expo)
+            y = frombits(T, sign, expo, mant)
+            @test x==y
+        end
+    end
 
-acc_res = accurate_result(f, args...)
-res = setprecision(input_precision) do
-    f(args...)
+    for T in floats
+        @test sample_bitpattern(T) isa T
+    end
 end
-accuracy(f, args...)

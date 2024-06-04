@@ -1,12 +1,27 @@
 using TermInterface
 using IntervalArithmetic
 using OptiFloat
-using OptiFloat: all_subexpressions, local_error
+using OptiFloat: all_subexpressions, local_error, evaluate_exact
 
 expr = :((1 / (x+1) - (2/x)) + (1/x+1))
 #expr = :(1 / (x+1) - (2/x))
-x = Float16(1e2)
 f(x) = (1/(x-1) - 2/x) + (1/x+1)
+
+expr = :(x + 1 - x)
+f(x) = x+1-x
+T = Float16
+x = T(5e3)
+
+point = ((:x,x),)
+exact_args = collect(evaluate_exact(a, point...) for a in arguments(expr))
+approx_args = convert(Vector{T}, exact_args)
+localf = iscall(expr) ? eval(operation(expr)) : error("not a call")
+exact_result = localf(exact_args...)
+approx_result = localf(approx_args...)
+#exact_result = evaluate_exact(localf, exact_args...)
+localf(exact_args...)
+abs(approx_result - exact_result) |> typeof
+
 
 # hmm, seems to identify the wrong operation as error prone
 # also why is there 1/x in all_subexpressions
@@ -15,8 +30,17 @@ Dict(e => local_error(e,(:x,x)) for e in all_subexpressions(expr))
 abs(evaluate_exact(f,x) - f(x))
 
 
-
 #########################################################################
+
+using Plots
+
+f(x) = x+1-x
+start = Float16(1e4)
+step = start*Float16(0.1)
+p1 = plot(f, -start:step:start)
+plot(p1, x -> evaluate_exact(f,x), -start:step:start)
+
+
 
 expr = :(x^y / (x^y + 2))
 f(x,y) = x^y / (x^y + 2)
