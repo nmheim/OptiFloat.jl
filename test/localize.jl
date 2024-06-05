@@ -1,17 +1,19 @@
 using TermInterface
 using IntervalArithmetic
 using OptiFloat
-using OptiFloat: all_subexpressions, local_error, evaluate_exact, evaluate, accuracy
+using OptiFloat: all_subexpressions, local_error, evaluate_exact, evaluate, accuracy, sample_bitpattern
 
 
 T = Float16
 x = T(5.13e3)
 point = (;x=x)
 
-expr = :(x + 1 - x)
-evaluate_exact(expr, point)
+batch = (; x=sample_bitpattern(T,256))
 
-d = Dict(e => local_error(e,point) for e in all_subexpressions(expr))
+expr = :(x + 1 - x)
+evaluate_exact(expr, batch)
+
+d = Dict(e => local_error(e,batch) for e in all_subexpressions(expr))
 target = Dict(
     1              => 0,
     :(x + 1)       => 1.0,
@@ -23,15 +25,18 @@ target = Dict(
 
 T = Float16
 x = T(5.1319e4)
-x = T(0.1)
+x = T(10)
 point = (;x=x)
-expr = :((1 / (x+1) - (2/x)) + 1/(x+1))
+expr = :((1 / (x-1) - (2/x)) + 1/(x+1))
+f = OptiFloat.lambdify(expr, :x)
 g(x) = 2/(x^3-x)
 evaluate_exact(expr, point)
 evaluate(expr, point)
 accuracy(expr, point)
 #expr = :(1 / (x+1) - (2/x))
 d = Dict(e => local_error(e,point) for e in all_subexpressions(expr))
+batch = (;x=sample_bitpattern(T,256))
+d = Dict(e => local_error(e,batch) for e in all_subexpressions(expr))
 
 #########################################################################
 
