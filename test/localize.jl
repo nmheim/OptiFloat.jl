@@ -1,13 +1,14 @@
 using TermInterface
 using IntervalArithmetic
 using OptiFloat
-using OptiFloat: all_subexpressions, local_error, evaluate_exact, evaluate
+using OptiFloat: all_subexpressions, local_error, evaluate_exact, evaluate, accuracy
 
 
-expr = :(x + 1 - x)
 T = Float16
 x = T(5.13e3)
 point = (;x=x)
+
+expr = :(x + 1 - x)
 evaluate_exact(expr, point)
 
 d = Dict(e => local_error(e,point) for e in all_subexpressions(expr))
@@ -20,10 +21,15 @@ target = Dict(
 @assert d == target
 
 
-expr = :((1 / (x+1) - (2/x)) + (1/x+1))
+T = Float16
+x = T(5.1319e4)
+x = T(0.1)
+point = (;x=x)
+expr = :((1 / (x+1) - (2/x)) + 1/(x+1))
 g(x) = 2/(x^3-x)
 evaluate_exact(expr, point)
 evaluate(expr, point)
+accuracy(expr, point)
 #expr = :(1 / (x+1) - (2/x))
 d = Dict(e => local_error(e,point) for e in all_subexpressions(expr))
 

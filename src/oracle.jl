@@ -35,10 +35,17 @@ evaluate_exact(x::Number, p::Point; kw...) = x
 
 evaluate(expr, point::Point) = lambdify(expr, keys(point)...)(values(point)...)
 
-function accuracy(f, args::T...; kw...) where T
-    setprecision(precision(args[1])) do
-        abs(f(args...) - evaluate_exact(f, args..., kw...))
+function accuracy(f, args...; kw...)
+    y_exact = evaluate_exact(f, args...; kw...)
+    y_approx = f(args...)
+    y = setprecision(y_exact.prec) do
+        abs(y_approx - y_exact)
     end
+    convert(typeof(y_approx), y)
+end
+function accuracy(expr::Expr, point::Point; kw...)
+    g = lambdify(expr, keys(point)...)
+    accuracy(g, values(point)...; kw...)
 end
 
 function all_subexpressions(expr)
@@ -50,25 +57,27 @@ function all_subexpressions(expr)
     unique(subs)
 end
 
-local_error(x::Number, point::Point) = 0
-local_error(x::Symbol, point::Point) = 0
+local_error(x::Number, point::Point) = BigFloat(0)
+local_error(x::Symbol, point::Point) = BigFloat(0)
+
+maximum_precision(fs::Vector{BigFloat}) = maximum(precision.(fs))
+maximum_precision(fs) = maximum(precision(f) for f in fs if !(f isa Int))
 
 function local_error(expr, point::Point{syms,N,T}) where {syms,N,T}
     localf = iscall(expr) ? eval(operation(expr)) : error("not a call")
 
     # each BigFloat from evaluate_exact might have different precision
     exact_args = [evaluate_exact(a, point) for a in arguments(expr)]
-    prec = maximum(precision(a) for a in exact_args if !(a isa Int))
+    prec = maximum_precision(exact_args)
 
     approx_args = convert(Vector{T}, exact_args)
     approx_result = localf(approx_args...)
 
-    err = setprecision(prec) do 
-        exact_args = [BigFloat(x,prec) for x in exact_args]
-        exact_result = evaluate_exact(localf, exact_args...)
+    exact_args = [BigFloat(x,prec) for x in exact_args]
+    exact_result = evaluate_exact(localf, exact_args...)
+    setprecision(prec) do 
         abs(approx_result - exact_result)
     end
-    convert(T, err)
 end
 
 function lambdify(expr, args...)
