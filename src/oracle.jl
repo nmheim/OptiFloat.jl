@@ -5,7 +5,7 @@ using Statistics: mean
 const Point{syms,N,T} = NamedTuple{syms, <:NTuple{N,T}} where {syms,N,T<:Real}
 const Batch{syms,N,T} = NamedTuple{syms, <:NTuple{N,Vector{T}}} where {syms,N,T<:Real}
 
-function evaluate_exact(f, args::Union{<:Number,Int}...; init_precision=initprec(args...), max_precision=500)
+function evaluate_exact(f, args::Union{<:Number,Int}...; init_precision::Int=initprec(args...), max_precision::Int=1500)
 
     # need to check precision on values here, because BigFloat does not have precision in type
     @assert length(unique(precision.(filter(a->!(a isa Integer), args)))) == 1 "All inputs must have same precision!"
@@ -36,24 +36,32 @@ evaluate_exact(x::Number, p::Union{<:Point,<:Batch}; kw...) = x
 
 evaluate(expr, point::Point) = lambdify(expr, keys(point)...)(values(point)...)
 
-function accuracy(f, args...; kw...)
+function accuracy(f, args::Number...; kw...)
     y_exact = evaluate_exact(f, args...; kw...)
     y_approx = try
         f(args...)
     catch e
         if e isa DomainError
-            # TODO: return correct NaN type, e.g. NaN16
-            NaN
+            BigFloat(NaN)
         else
             rethrow(e)
         end
     end
-    y = setprecision(y_exact.prec) do
-        1 - abs((y_approx - y_exact) / max(y_approx, y_exact))
+    if isfinite(y_approx)
+        # special case close to zero
+        T = typeof(y_approx)
+        ε = eps(T)
+        if (-2ε < y_approx < 2ε) && (-2ε < y_exact < 2ε)
+            BigFloat(1)
+        else
+            setprecision(y_exact.prec) do
+                acc = 1 - abs((y_approx - y_exact) / maximum(abs.([y_approx, y_exact])))
+                max(acc, 0)
+            end :: BigFloat
+        end
+    else
+        BigFloat(0, y_exact.prec)
     end
-    out = convert(typeof(y_approx), y)
-    # converts NaNs/Infs to zero... do we want that?
-    isfinite(out) ? out : zero(typeof(y_approx))
 end
 function accuracy(expr::Expr, point::Point; kw...)
     g = lambdify(expr, keys(point)...)

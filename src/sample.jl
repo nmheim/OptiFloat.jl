@@ -1,4 +1,4 @@
-sample_bitpattern(T, n::Int) = [sample_bitpattern(T) for _ in 1:n]
+sample_bitpattern(T::Type, n::Int) = T[sample_bitpattern(T) for _ in 1:n]
 function sample_bitpattern(T::Type{<:AbstractFloat})
     n_sign, n_expo, n_mant = _bits(T)
     _sample(n::Int) = rand(['0','1'], n)
@@ -14,7 +14,7 @@ function sample_bitpattern(T::Type{<:AbstractFloat})
     frombits(T, sign, expo, mant)
 end
 
-function frombits(T::Type{<:AbstractFloat}, sign, exponent, mantissa)
+function frombits(T::Type{<:AbstractFloat}, sign, exponent, mantissa)::T
     n_sign, n_expo, n_mant = _bits(T)
     @assert length(sign)==n_sign "$T must have $n_sign sign bit. Found: $(length(sign))"
     @assert length(exponent)==n_expo "$T must have $n_expo exponent bits. Found: $(length(exponent))"
@@ -22,7 +22,7 @@ function frombits(T::Type{<:AbstractFloat}, sign, exponent, mantissa)
     f = String(vcat(sign, exponent, mantissa))
     reinterpret(T, Meta.parse(string("0b", f)))
 end
-function frombits(T::Type{<:AbstractFloat}, sign::S, exponent::S, mantissa::S) where {S<:String}
+function frombits(T::Type{<:AbstractFloat}, sign::S, exponent::S, mantissa::S)::T where {S<:String}
     frombits(T, collect(sign), collect(exponent), collect(mantissa))
 end
 

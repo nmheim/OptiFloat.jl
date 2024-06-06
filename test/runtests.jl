@@ -1,5 +1,6 @@
 using Test
-using OptiFloat: frombits, sample_bitpattern, evaluate_exact, all_subexpressions, local_error
+using OptiFloat
+using OptiFloat: frombits, sample_bitpattern, evaluate_exact, all_subexpressions, local_error, accuracy
 
 @testset "Sample float bitpatterns" begin
     splitafter(vec, idx) = vec[1:idx], vec[idx+1:end]
@@ -44,6 +45,14 @@ end
     ys = zeros(Float16, 3) .+ x
     batch = (; x=xs, y=xs)
     @test evaluate_exact(expr, batch) == zero(xs) .+ 1
+end
+
+
+@testset "Accuracy" begin
+   T = Float16
+   x = T(5.13e3)
+   f(x,y) = x + 1 - y
+   @test accuracy(f, x, x) == 0
 end
 
 
