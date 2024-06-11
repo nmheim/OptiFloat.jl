@@ -10,5 +10,5 @@ TermInterface = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
 
 [compat]
 IntervalArithmetic = "0.22.12"
-Statistics = "1.11.1"
+Statistics = "1"
 TermInterface = "0.4.1"
