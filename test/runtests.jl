@@ -1,6 +1,6 @@
 using Test
 using OptiFloat
-using OptiFloat: frombits, sample_bitpattern, evaluate_exact, all_subexpressions, local_error, accuracy
+using OptiFloat: frombits, sample_bitpattern, evaluate_exact, all_subexpressions, local_cost, accuracy
 
 @testset "Sample float bitpatterns" begin
     splitafter(vec, idx) = vec[1:idx], vec[idx+1:end]
@@ -56,21 +56,21 @@ end
 end
 
 
-@testset "Local error" begin
+@testset "Local cost" begin
     expr = :(x + 1 - y)
 
     T = Float16
     x = T(5.13e3)
     point = (;x=x, y=x)
 
-    d = Dict(e => local_error(e,point) for e in all_subexpressions(expr))
-    target = Dict(1 => 0, :(x + 1) => 1.0, :((x + 1) - y) => 1.0, :x => 0, :y => 0)
+    d = Dict(e => local_cost(e,point) for e in all_subexpressions(expr))
+    target = Dict(1 => 0, :(x + 1) => 0, :((x + 1) - y) => 15360, :x => 0, :y => 0)
     @test d == target
 
     batch = (;
         x = zeros(T,3) .+ x,
         y = zeros(T,3) .+ x
     )
-    d = Dict(e => local_error(e,batch) for e in all_subexpressions(expr))
+    d = Dict(e => local_cost(e,batch) for e in all_subexpressions(expr))
     @test d == target
 end

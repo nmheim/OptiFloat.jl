@@ -5,9 +5,9 @@ include("plots.jl")
 f(a,b,c) = (-b - sqrt(b^2 - 4*a*c)) / (2*a)
 
 # y = accuracy(f, -1.0, 1.0, 1.0)
-# @code_warntype evaluate_exact(f, -1.0, 1.0, 1.0)
-# @code_warntype accuracy(f, -1.0, 1.0, 1.0)
-# @code_warntype accuracy.(f, -ones(2), ones(2), ones(2))
+@code_warntype evaluate_exact(f, -1.0, 1.0, 1.0)
+@code_warntype errorscore(f, -1.0, 1.0, 1.0)
+@code_warntype errorscore.(f, -ones(2), ones(2), ones(2))
 
 T = Float64
 batchsize = 100

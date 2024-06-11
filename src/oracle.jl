@@ -5,11 +5,7 @@ using Statistics: mean
 const Point{syms,N,T} = NamedTuple{syms, <:NTuple{N,T}} where {syms,N,T<:Real}
 const Batch{syms,N,T} = NamedTuple{syms, <:NTuple{N,Vector{T}}} where {syms,N,T<:Real}
 
-function evaluate_exact(f, args::Union{<:Number,Int}...; init_precision::Int=initprec(args...), max_precision::Int=1500)
-
-    # need to check precision on values here, because BigFloat does not have precision in type
-    @assert length(unique(precision.(filter(a->!(a isa Integer), args)))) == 1 "All inputs must have same precision!"
-
+function evaluate_exact(f, args::Union{<:Number,Int}...; init_precision::Int=53, max_precision::Int=1500)
     # compute interval for higher precision
     precision_interval = setprecision(init_precision) do
         intervals = interval.(BigFloat.(args))
@@ -82,24 +78,25 @@ exposize(::Type{Float32}) = 8
 exposize(::Type{Float64}) = 11
 maxulp(::Type{T}) where T<:AbstractFloat = 2^precision(T) * exposize(T)
 
-function errorscore(f, args::Number...; kw...)
+function cost(f, args::T...; kw...) where T<:AbstractFloat
     y_exact = evaluate_exact(f, args...; kw...)
-    T = floattype(args...)
     y_approx = try
         f(args...)
     catch e
         if e isa DomainError
-            #BigFloat(NaN)
             T(NaN)
         else
             rethrow(e)
         end
     end
 
-    #ulps = 1 + ulpdistance(y_approx, y_exact)
     ulps = ulpdistance(y_approx, convert(T,y_exact))
-    err = ulps==0 ? 0 : log2(ulps)
-    1 - (err / (sizeof(T)*8))
+    ulps==0 ? T(0) : log2(ulps)
+end
+function costscore(f, args...; kw...)
+    err = cost(f, args...; kw...)
+    score = 1 - (err / (sizeof(T)*8))
+    convert(T, score)
 end
 
 function accuracy(f, args::Number...; kw...)
@@ -143,17 +140,19 @@ function all_subexpressions(expr)
     unique(subs)
 end
 
-local_error(x::Number, point::Union{<:Point,<:Batch}) = BigFloat(0)
-local_error(x::Symbol, point::Union{<:Point,<:Batch}) = BigFloat(0)
+local_cost(x::Number, point::Point{syms,N,T}) where {syms,N,T}= BigInt(0)
+local_cost(x::Symbol, point::Point{syms,N,T}) where {syms,N,T}= BigInt(0)
+local_cost(x::Number, point::Batch{syms,N,T}) where {syms,N,T}= BigInt(0)
+local_cost(x::Symbol, point::Batch{syms,N,T}) where {syms,N,T}= BigInt(0)
+
 
 maximum_precision(::Int) = 0
 maximum_precision(x::AbstractFloat) = precision(x)
 maximum_precision(fs::Vector) = maximum(maximum_precision.(fs))
 
-function local_error(expr, point::Point{syms,N,T}) where {syms,N,T}
+function local_cost(expr, point::Point{syms,N,T}) where {syms,N,T}
     localf = iscall(expr) ? eval(operation(expr)) : error("not a call")
 
-    # each BigFloat from evaluate_exact might have different precision
     exact_args = [evaluate_exact(a, point) for a in arguments(expr)]
     prec = maximum_precision(exact_args)
 
@@ -162,15 +161,14 @@ function local_error(expr, point::Point{syms,N,T}) where {syms,N,T}
 
     exact_args = [BigFloat(x,prec) for x in exact_args]
     exact_result = evaluate_exact(localf, exact_args...)
-    setprecision(prec) do 
-        abs(approx_result - exact_result)
-    end
+
+    ulpdistance(approx_result, convert(T, exact_result))
 end
 
 convert_args(T::Type{<:AbstractFloat}, arg::Number) = convert(T,arg)
 convert_args(T::Type{<:AbstractFloat}, args::Vector) = convert_args.(T,args)
 
-function local_error(expr, batch::Batch{syms,N,T}; accum=mean) where {syms,N,T}
+function local_cost(expr, batch::Batch{syms,N,T}; accum=mean) where {syms,N,T}
     localf = iscall(expr) ? eval(operation(expr)) : error("not a call")
 
     # each BigFloat from evaluate_exact might have different precision
@@ -183,7 +181,7 @@ function local_error(expr, batch::Batch{syms,N,T}; accum=mean) where {syms,N,T}
     exact_args = [BigFloat.(x,prec) for x in exact_args]
     exact_result = evaluate_exact.(localf, exact_args...)
     setprecision(prec) do
-        mean(abs, approx_result - exact_result)
+        accum(ulpdistance.(approx_result, convert(Vector{T}, exact_result)))
     end
 end
 
