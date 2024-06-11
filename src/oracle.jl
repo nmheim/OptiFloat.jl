@@ -36,6 +36,72 @@ evaluate_exact(x::Number, p::Union{<:Point,<:Batch}; kw...) = x
 
 evaluate(expr, point::Point) = lambdify(expr, keys(point)...)(values(point)...)
 
+_inttype(::Type{Float16}) = Int16
+_inttype(::Type{Float32}) = Int32
+_inttype(::Type{Float64}) = Int64
+
+#function ulpdistance(a::F, b::F) where F
+#    T = _inttype(F)
+#    a_ = -0.0 === a ? reinterpret(T, F(0.0)) : reinterpret(T, a)
+#    b_ = -0.0 === b ? reinterpret(T, F(0.0)) : reinterpret(T, b)
+#    abs(a_ - b_)
+#end
+#function ulpdistance(a::BigFloat, b::BigFloat)
+#    @assert a.prec == b.prec
+#    abs(tobigint(a) - tobigint(b))
+#end
+function ulpdistance(a::F, b::F) where F<:AbstractFloat
+    a == b && return 0
+    T = _inttype(F)
+    isnan(a) || isnan(b) && return typemax(T)
+    isinf(a) || isinf(b) && return typemax(T)
+    
+    a_int = reinterpret(T, a)
+    b_int = reinterpret(T, b)
+
+    (a_int < 0) != (b_int < 0) && return typemax(T)
+
+    return abs(a_int - b_int)
+end
+function ulpdistance(a::F, b::BigFloat) where F<:AbstractFloat
+    a == b && return 0
+    T = _inttype(F)
+    isnan(a) || isnan(b) && return BigInt(typemax(T))
+    isinf(a) || isinf(b) && return BigInt(typemax(T))
+    
+    a_int = reinterpret(T, a)
+    b_int = tobigint(b)
+
+    (a_int < 0) != (b_int < 0) && return BigInt(typemax(T))
+
+    return abs(a_int - b_int)
+end
+
+exposize(::Type{Float16}) = 5
+exposize(::Type{Float32}) = 8
+exposize(::Type{Float64}) = 11
+maxulp(::Type{T}) where T<:AbstractFloat = 2^precision(T) * exposize(T)
+
+function errorscore(f, args::Number...; kw...)
+    y_exact = evaluate_exact(f, args...; kw...)
+    T = floattype(args...)
+    y_approx = try
+        f(args...)
+    catch e
+        if e isa DomainError
+            #BigFloat(NaN)
+            T(NaN)
+        else
+            rethrow(e)
+        end
+    end
+
+    #ulps = 1 + ulpdistance(y_approx, y_exact)
+    ulps = ulpdistance(y_approx, convert(T,y_exact))
+    err = ulps==0 ? 0 : log2(ulps)
+    1 - (err / (sizeof(T)*8))
+end
+
 function accuracy(f, args::Number...; kw...)
     y_exact = evaluate_exact(f, args...; kw...)
     y_approx = try
@@ -51,7 +117,7 @@ function accuracy(f, args::Number...; kw...)
         # special case close to zero
         T = typeof(y_approx)
         ε = eps(T)
-        if (-2ε < y_approx < 2ε) && (-2ε < y_exact < 2ε)
+        if (-ε < y_approx < ε) && (-ε < y_exact < ε)
             BigFloat(1)
         else
             setprecision(y_exact.prec) do
