@@ -1,6 +1,6 @@
 using Test
 using OptiFloat
-using OptiFloat: frombits, sample_bitpattern, evaluate_exact, all_subexpressions, local_cost, accuracy
+using OptiFloat: frombits, sample_bitpattern, evaluate_exact, all_subexpressions, local_cost, accuracy, ulpdistance, cost
 
 @testset "Sample float bitpatterns" begin
     splitafter(vec, idx) = vec[1:idx], vec[idx+1:end]
@@ -48,6 +48,17 @@ end
 end
 
 
+@testset "Cost" begin
+    @test ulpdistance(Float16(0), Float16(1)) == 15360
+
+    T = Float16
+    x = T(5e3)
+    f(x) = x+1-x
+    # first 14 significant bits should be incorrect
+    @assert round(Int, cost(f, x)) == 14
+end
+
+
 @testset "Accuracy" begin
    T = Float16
    x = T(5.13e3)
@@ -64,7 +75,7 @@ end
     point = (;x=x, y=x)
 
     d = Dict(e => local_cost(e,point) for e in all_subexpressions(expr))
-    target = Dict(1 => 0, :(x + 1) => 0, :((x + 1) - y) => 15360, :x => 0, :y => 0)
+    target = Dict(1 => 0, :(x + 1) => 0, :((x + 1) - y) => ulpdistance(T(0), T(1)), :x => 0, :y => 0)
     @test d == target
 
     batch = (;
