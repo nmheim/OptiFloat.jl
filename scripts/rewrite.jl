@@ -1,5 +1,5 @@
 using BenchmarkTools
-using OptiFloat: local_biterror, sample_bitpattern, all_subexpressions, lambdify, rewrite_once
+using OptiFloat: local_biterror, sample_bitpattern, all_subexpressions, lambdify, rewrite_once, recursive_rewrite
 using TermInterface: iscall, operation
 using DynamicExpressions
 
@@ -45,10 +45,39 @@ function eqrules_to_dirrules(theory)
 end
 
 
+
 r = @rule "distributive" a b c a * (b+c) == (a+b) * (a+c)
 no_equality_rules_theory = eqrules_to_dirrules(CAS_THEORY)
 
-rewrite_once(:(a+b), no_equality_rules_theory)
+rewrite_once(:(a*(c+(0*a))), no_equality_rules_theory)
+recursive_rewrite(:(a+b), no_equality_rules_theory)
+recursive_rewrite(:(a*(c+b)), no_equality_rules_theory)
+recursive_rewrite(:(a*(c+(0*a + a*1))), no_equality_rules_theory)
+
+TEST_THEORY = @theory a x y z begin
+    -x --> 0 - x
+    x+y --> (x^2-y^2) / (x-y)
+    (x-y)+z == x-(y-z) 
+
+    sqrt(x)^2 --> x
+    (-x)^2 --> x^2
+
+    x - x --> 0
+    0 + x --> x
+
+    x / y / z --> x / (y * z)
+    (a*x) / (a*y) --> x/y
+end
+TEST_THEORY = TEST_THEORY ∪ @commutative_monoid (*) 1
+
+expr = :((-b + sqrt(b^2 - 4*a*c)) / (2*a))
+#expr = :(-a *(b+c))
+rws = recursive_rewrite(expr, eqrules_to_dirrules(TEST_THEORY))
+
+g = EGraph(rws[2])
+#g = EGraph(:(4a / b / 2a))
+saturate!(g, TEST_THEORY)
+extract!(g, astsize)
 
 
 T = Float64
