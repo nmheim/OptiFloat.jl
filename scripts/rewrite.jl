@@ -26,34 +26,26 @@ expr = :((1/(x-1) - 2/x) + (1/(x+1)) + cos(x))
 expr = :(x+1)
 
 
+_direct(name, left, right) = eval(:(@rule $name $(Meta.parse(repr(left))) --> $(Meta.parse(repr(right)))))
 
-function direct_left_to_right(r::RewriteRule{typeof(|>)})
-    if length(r.name) > 0
-        eval(:(@rule $(r.name) $(repr(r.left)) -->  $(repr(r.right))))
-    else
-        eval(:(@rule $(repr(r.left)) -->  $(repr(r.right))))
-    end
-end
-function direct_right_to_left(r::RewriteRule{typeof(|>)})
-    if length(r.name) > 0
-        eval(:(@rule $(r.name) $(repr(r.right)) -->  $(repr(r.left))))
-    else
-        eval(:(@rule $(repr(r.right)) -->  $(repr(r.left))))
-    end
-end
+direct_left_to_right(r::RewriteRule{typeof(==)}) = _direct(r.name, r.left, r.right)
+direct_right_to_left(r::RewriteRule{typeof(==)}) = _direct(r.name, r.right, r.left)
 
-direct(r::RewriteRule{typeof(|>)}) = (direct_left_to_right(r), direct_right_to_left(r))
+direct(r::RewriteRule{typeof(==)}) = (direct_left_to_right(r), direct_right_to_left(r))
 direct(r::RewriteRule) = (r,)
 
 function eqrules_to_dirrules(theory)
     newtheory = eltype(theory)[]
     for r in theory
-        for s in straighten(r)
+        for s in direct(r)
             push!(newtheory, s)
         end
     end
     newtheory
 end
+
+
+r = @rule "distributive" a b c a * (b+c) == (a+b) * (a+c)
 no_equality_rules_theory = eqrules_to_dirrules(CAS_THEORY)
 
 rewrite_once(:(a+b), no_equality_rules_theory)
