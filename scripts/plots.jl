@@ -2,13 +2,14 @@ using CairoMakie
 using Printf
 using Statistics: mean
 
-function plot_accuracy(xs::Vector{<:Number}, as::Vector{<:Number}, nxticks=6)
+function plot_accuracy(xs::Vector{<:Number}, ys::Vector{<:Number})
     fig = Figure()
-    n = length(xs)
-    idx = 1:Int(div(n,nxticks)):n
-    ax = Axis(fig[1, 1], xticks=(idx, [@sprintf("%.2e", n) for n in xs[idx]]), limits=(nothing, nothing, -0.1, 1.1))
-    #ax = Axis(fig[1, 1])
-    lines!(ax, as)
+    m = xs |> eltype |> maxintfloat |> log10
+    xticks = [10^i for i in 1:floor(m)]
+    xticks = vcat(-xticks, xticks)
+	xticklabels = [@sprintf("%.e",x) for x in xticks]
+    ax = Axis(fig[1, 1], xscale=Makie.Symlog10(1), xticks=(xticks, xticklabels), xlimits=(minimum(xs), maximum(xs)))
+    lines!(ax, xs, ys)
     fig
 end
 

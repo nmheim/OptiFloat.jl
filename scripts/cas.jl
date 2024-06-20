@@ -71,7 +71,7 @@ fold_t = @theory a b begin
 end
   
 
-theory = union(plus_t, minus_t, mult_t, mulplus_t, pow_t, div_t, trig_t, fold_t)
+CAS_THEORY = union(plus_t, minus_t, mult_t, mulplus_t, pow_t, div_t, trig_t, fold_t)
 
 function to_exprs(g::EGraph, n::VecExpr)
     v_isexpr(n) || return [get_constant(g, v_head(n))]
@@ -99,13 +99,41 @@ function to_exprs(g::EGraph, eclass_id)
     )
 end
 
-
-expr = :(a - b * c)
-g = EGraph(expr)
-
-union!(g, addexpr!(g,:a), addexpr!(g,:b))
-saturate!(g, theory)
-
-r = find(g, g.root)
-
-to_exprs(g,r)
+# 
+# expr1 = :(x + y)
+# g = EGraph()
+# ide1 = addexpr!(g, expr1)
+# id8 = addexpr!(g, 4)
+# union!(g, ide1, id8)
+# 
+# id2 = addexpr!(g,2)
+# union!(g, find(g,addexpr!(g,:x)), id2)
+# 
+# saturate!(g, theory)
+# 
+# expr2 = :(-3x - y + 2z)
+# ide2 = addexpr!(g, expr2)
+# id11 = addexpr!(g, -11)
+# union!(g, ide2, id11)
+# 
+# expr3 = :(-2x + y +2z)
+# ide3 = addexpr!(g, expr3)
+# id3 = addexpr!(g, -3)
+# 
+# 
+# saturate!(g, theory)
+# 
+# 
+# 
+# expr = :(a - b * c)
+# g = EGraph(expr)
+# 
+# union!(g, addexpr!(g,:a), addexpr!(g,:b))
+# saturate!(g, theory)
+# 
+# x = find(g, addexpr!(g, :x))
+# extract!(g, astsize, x)
+# 
+# r = find(g, g.root)
+# 
+# to_exprs(g,r)

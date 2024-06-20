@@ -7,4 +7,15 @@ include("sample.jl")
 include("evaluate.jl")
 include("oracle.jl")
 
+function rewrite_once(expr, theory)
+    rws = Expr[]
+    for rule in theory
+        rw = rule(expr)
+        if !isnothing(rw)
+            push!(rws, rw)
+        end
+    end
+    rws
+end
+
 end # module OptiFloat

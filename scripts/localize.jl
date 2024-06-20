@@ -1,7 +1,7 @@
 using TermInterface
 using IntervalArithmetic
 using OptiFloat
-using OptiFloat: all_subexpressions, local_cost, evaluate_exact, evaluate, accuracy, sample_bitpattern
+using OptiFloat: all_subexpressions, local_biterror, evaluate_exact, evaluate, accuracy, sample_bitpattern
 
 
 T = Float16
@@ -12,7 +12,7 @@ batch = (; x=sample_bitpattern(T,256))
 expr = :(x + 1 - x)
 evaluate_exact(expr, point)
 
-d = Dict(e => local_cost(e,point) for e in all_subexpressions(expr))
+d = Dict(e => local_biterror(e,point) for e in all_subexpressions(expr))
 target = Dict(
     1              => 0,
     :(x + 1)       => 0,
@@ -21,7 +21,7 @@ target = Dict(
 )
 @assert d == target
 
-d = Dict(e => local_cost(e,batch) for e in all_subexpressions(expr))
+d = Dict(e => local_biterror(e,batch) for e in all_subexpressions(expr))
 
 
 T = Float16

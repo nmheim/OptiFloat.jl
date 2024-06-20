@@ -1,6 +1,10 @@
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+DynamicExpressions = "a40a106e-89c9-4ca8-8020-a735e8728b6b"
+GraphViz = "f526b714-d49f-11e8-06ff-31ed36ee7ee0"
 IntervalArithmetic = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+Metatheory = "e9d8d322-4543-424a-9be4-0cc815abe26c"
 OptiFloat = "704b4457-c485-4fbe-a8ad-b77f6dbf1f10"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+TermInterface = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
