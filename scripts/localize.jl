@@ -22,6 +22,7 @@ x = T(5.1319e4)
 x = T(10)
 point = (;x=x)
 expr = :((1 / (x-1) - (2/x)) + 1/(x+1))
+expr = :(x + 1 - x)
 f = OptiFloat.lambdify(expr, :x)
 g(x) = 2/(x^3-x)
 evaluate_exact(expr, point)
@@ -30,7 +31,8 @@ accuracy(expr, point)
 #expr = :(1 / (x+1) - (2/x))
 d = Dict(e => local_error(e,point) for e in all_subexpressions(expr))
 batch = (;x=sample_bitpattern(T,256))
-d = Dict(e => local_error(e,batch) for e in all_subexpressions(expr))
+f() = Dict(e => local_biterror(e,batch) for e in all_subexpressions(expr))
+@btime f()
 
 #########################################################################
 

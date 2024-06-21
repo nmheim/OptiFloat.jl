@@ -1,8 +1,3 @@
-using TermInterface: maketerm, iscall, arguments, operation
-using IntervalArithmetic: interval, bounds, isthin, mid
-using Statistics: mean
-
-
 _inttype(::Type{Float16}) = Int16
 _inttype(::Type{Float32}) = Int32
 _inttype(::Type{Float64}) = Int64
@@ -18,7 +13,6 @@ function ulpdistance(a::F, b::F) where F<:AbstractFloat
 
     (a_int < 0) != (b_int < 0) && return typemax(T)
 
-    @info "ulp" a b typeof(a_int) typeof(b_int)
     return abs(a_int - b_int)
 end
 #function ulpdistance(a::F, b::BigFloat) where F<:AbstractFloat
@@ -68,7 +62,7 @@ function subfunctions(expr::Expr, args::Symbol...)
     Dict(e=>lambdify(e, args...) for e in exprs)
 end
 
-function all_subexpressions(expr::Expr)
+function all_subexpressions(expr::Union{Expr,Node})
     subs = if iscall(expr)
         vcat([expr], reduce(vcat, all_subexpressions.(arguments(expr))))
     else
@@ -95,16 +89,57 @@ function local_biterror(expr, point::Point{syms,N,T}) where {syms,N,T}
     prec = maximum_precision(exact_args)
 
     approx_args = convert(Vector{T}, exact_args)
-    approx_result = localf(approx_args...)
+    biterror(localf, approx_args...)
+    #approx_result = localf(approx_args...)
 
-    exact_args = [BigFloat(x,prec) for x in exact_args]
-    exact_result = evaluate_exact(localf, exact_args...)
+    #exact_args = [BigFloat(x,prec) for x in exact_args]
+    #exact_result = evaluate_exact(localf, exact_args...)
 
-    ulpdistance(approx_result, convert(T, exact_result))
+    #ulpdistance(approx_result, convert(T, exact_result))
 end
 
 convert_args(T::Type{<:AbstractFloat}, arg::Number) = convert(T,arg)
 convert_args(T::Type{<:AbstractFloat}, args::Vector) = convert_args.(T,args)
+
+function TermInterface.arguments(e::Node)
+    if e.constant
+        #FIXME: should not end up here
+        []
+    end
+
+    if e.degree == 0
+        [e]
+    elseif e.degree == 1
+        [e.l]
+    else
+        [e.l, e.r]
+    end
+end
+TermInterface.operation(e::Node) = e.op
+TermInterface.iscall(e::Node) = e.degree > 0
+
+function local_biterror(expr::Node{T}, ops::OperatorEnum, X::Matrix{T}; accum=mean) where T
+    if expr.degree==0 #|| expr.constant
+        return T(0)
+    end
+    # each BigFloat from evaluate_exact might have different precision
+    exact_args = [evaluate_exact(a, ops, X) for a in arguments(expr)]
+    prec = OptiFloat.maximum_precision(exact_args)
+
+    localf = expr.degree == 2 ? ops.binops[expr.op] : ops.unaops[expr.op]
+
+    approx_args = convert_args(T, exact_args)
+    approx_result = localf.(approx_args...)
+
+    exact_args = [BigFloat.(x,prec) for x in exact_args]
+    exact_result = evaluate_exact.(localf, exact_args...)
+    ulps = setprecision(prec) do
+        accum(ulpdistance.(approx_result, convert(Vector{T}, exact_result)))
+    end
+    T(ulps ≈ 0 ? 0 : log2(ulps))
+end
+
+
 
 function local_biterror(expr, batch::Batch{syms,N,T}; accum=mean) where {syms,N,T}
     localf = iscall(expr) ? eval(operation(expr)) : error("not a call")
@@ -114,13 +149,16 @@ function local_biterror(expr, batch::Batch{syms,N,T}; accum=mean) where {syms,N,
     prec = maximum_precision(exact_args)
 
     approx_args = convert_args(T, exact_args)
-    approx_result = localf.(approx_args...)
-
-    exact_args = [BigFloat.(x,prec) for x in exact_args]
-    exact_result = evaluate_exact.(localf, exact_args...)
     setprecision(prec) do
-        accum(ulpdistance.(approx_result, convert(Vector{T}, exact_result)))
+        accum(biterror.(localf, approx_args...))
     end
+    #approx_result = localf.(approx_args...)
+
+    #exact_args = [BigFloat.(x,prec) for x in exact_args]
+    #exact_result = evaluate_exact.(localf, exact_args...)
+    #setprecision(prec) do
+    #    accum(ulpdistance.(approx_result, convert(Vector{T}, exact_result)))
+    #end
 end
 
 function lambdify(expr, args...)

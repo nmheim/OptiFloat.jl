@@ -74,6 +74,21 @@ using OptiFloat: @subfunctions, _subfunctions
     error()
 end
 
+@testset "Local biterror dynamic expression" begin
+    operators = OperatorEnum(; binary_operators=[+, -])
+    T = Float16
+    a = Node{T}(feature=1)
+    expression = a + 1 - a
+    x = reshape(T[5e3 for _ in 1:100], 1, 100)
+    e = local_biterror(expression, operators, x)
+    @test e ≈ T(log2(ulpdistance(T(0), T(1))))
+
+    d = Dict(e => local_biterror(e,operators,X) for e in all_subexpressions(expression))
+    @test d isa Dict{Node{T},T}
+    target = Dict(1 => 0, :(x + 1) => 0, :((x + 1) - y) => ulpdistance(T(0), T(1)), :x => 0, :y => 0)
+    @test d == target
+end
+
 
 @testset "Local cost" begin
     expr = :(x + 1 - y)
