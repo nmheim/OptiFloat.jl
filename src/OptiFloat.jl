@@ -1,5 +1,6 @@
 module OptiFloat
 
+using DynamicExpressions: Node, OperatorEnum
 using TermInterface: operation, arguments, iscall
 
 const Point{syms,N,T} = NamedTuple{syms, <:NTuple{N,T}} where {syms,N,T<:Real}

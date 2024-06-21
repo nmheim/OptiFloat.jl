@@ -66,6 +66,14 @@ end
    @test accuracy(f, x, x) == 0
 end
 
+using OptiFloat: @subfunctions, _subfunctions
+@testset "subexpressions / subfunctions" begin
+    expr = :(x + 1 - y)
+    fns = @subfunctions x + 1 - y
+    @info fns fns[1](1,2)
+    error()
+end
+
 
 @testset "Local cost" begin
     expr = :(x + 1 - y)

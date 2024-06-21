@@ -8,8 +8,8 @@ _inttype(::Type{Float32}) = Int32
 _inttype(::Type{Float64}) = Int64
 
 function ulpdistance(a::F, b::F) where F<:AbstractFloat
-    a == b && return 0
     T = _inttype(F)
+    a == b && return zero(T)
     isnan(a) || isnan(b) && return typemax(T)
     isinf(a) || isinf(b) && return typemax(T)
     
@@ -18,21 +18,22 @@ function ulpdistance(a::F, b::F) where F<:AbstractFloat
 
     (a_int < 0) != (b_int < 0) && return typemax(T)
 
+    @info "ulp" a b typeof(a_int) typeof(b_int)
     return abs(a_int - b_int)
 end
-function ulpdistance(a::F, b::BigFloat) where F<:AbstractFloat
-    a == b && return 0
-    T = _inttype(F)
-    isnan(a) || isnan(b) && return BigInt(typemax(T))
-    isinf(a) || isinf(b) && return BigInt(typemax(T))
-    
-    a_int = reinterpret(T, a)
-    b_int = tobigint(b)
-
-    (a_int < 0) != (b_int < 0) && return BigInt(typemax(T))
-
-    return abs(a_int - b_int)
-end
+#function ulpdistance(a::F, b::BigFloat) where F<:AbstractFloat
+#    a == b && return 0
+#    T = _inttype(F)
+#    isnan(a) || isnan(b) && return BigInt(typemax(T))
+#    isinf(a) || isinf(b) && return BigInt(typemax(T))
+#    
+#    a_int = reinterpret(T, a)
+#    b_int = tobigint(b)
+#
+#    (a_int < 0) != (b_int < 0) && return BigInt(typemax(T))
+#
+#    return abs(a_int - b_int)
+#end
 
 function biterror(f, args::T...; kw...) where T<:AbstractFloat
     y_exact = evaluate_exact(f, args...; kw...)
@@ -45,9 +46,8 @@ function biterror(f, args::T...; kw...) where T<:AbstractFloat
             rethrow(e)
         end
     end
-
     ulps = ulpdistance(y_approx, convert(T,y_exact))
-    ulps==0 ? T(0) : log2(ulps)
+    T(ulps==0 ? 0 : log2(ulps))
 end
 function biterror(expr::Expr, point::Point; kw...)
     g = lambdify(expr, keys(point)...)
@@ -60,7 +60,15 @@ function biterrorscore(f, args::T...; kw...) where T<:AbstractFloat
     convert(T, score)
 end
 
-function all_subexpressions(expr)
+isconst(::Expr) = false
+isconst(::Symbol) = true
+isconst(::Number) = true
+function subfunctions(expr::Expr, args::Symbol...)
+    exprs = filter(!isconst, all_subexpressions(expr))
+    Dict(e=>lambdify(e, args...) for e in exprs)
+end
+
+function all_subexpressions(expr::Expr)
     subs = if iscall(expr)
         vcat([expr], reduce(vcat, all_subexpressions.(arguments(expr))))
     else
@@ -68,6 +76,7 @@ function all_subexpressions(expr)
     end
     unique(subs)
 end
+all_subexpressions(x) = [x]
 
 local_biterror(x::Number, point::Point{syms,N,T}) where {syms,N,T}= BigInt(0)
 local_biterror(x::Symbol, point::Point{syms,N,T}) where {syms,N,T}= BigInt(0)
