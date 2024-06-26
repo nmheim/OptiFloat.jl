@@ -85,8 +85,14 @@ end
 
     d = Dict(e => local_biterror(e,operators,X) for e in all_subexpressions(expression))
     @test d isa Dict{Node{T},T}
-    target = Dict(1 => 0, :(x + 1) => 0, :((x + 1) - y) => ulpdistance(T(0), T(1)), :x => 0, :y => 0)
-    @test d == target
+
+    target = Dict(
+        Node{T}(val=1.0) => 0,
+        a+1 => 0,
+        (a + 1) - a => T(log2(ulpdistance(T(0), T(1)))),
+        a => 0
+    )
+    @test target==d
 end
 
 

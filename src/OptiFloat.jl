@@ -60,7 +60,7 @@ function unary_binary_ops(expr)
 end
 
 function _dynexpr(T::Type{<:Number}, expr::Expr)
-    syms = _symbols(expr)
+    syms = sort(_symbols(expr))
     nodes = [:($s = Node{$T}(feature=$i)) for (i,s) in enumerate(syms)]
     unary, binary = unary_binary_ops(expr)
     quote

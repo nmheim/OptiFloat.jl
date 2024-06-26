@@ -1,4 +1,23 @@
-sample_bitpattern(T::Type, n::Int) = T[sample_bitpattern(T) for _ in 1:n]
+function sample_bitpattern(expr::Node, ops::OperatorEnum, T::Type, inputsize::Int, batchsize::Int)
+    samples = []
+    while length(samples)<batchsize
+        X = sample_bitpattern(T, inputsize, 1)
+        try
+            y = evaluate_exact(expr, ops, X) |> only
+            if isfinite(y)
+                push!(samples, X)
+            end
+        catch e
+            if e isa DomainError
+                continue
+            else
+                rethrow(e)
+            end
+        end
+    end
+    reduce(hcat, samples)
+end
+sample_bitpattern(T::Type, shape::Int...) = reshape(T[sample_bitpattern(T) for _ in 1:prod(shape)], shape...)
 function sample_bitpattern(T::Type{<:AbstractFloat})
     n_sign, n_expo, n_mant = _bits(T)
     _sample(n::Int) = rand(['0','1'], n)

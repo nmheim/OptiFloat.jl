@@ -49,4 +49,16 @@ function evaluate_exact(expr::Node{T}, ops::OperatorEnum, X::Matrix{T}; kw...) w
     )
 end
 
+function evaluate_approx(expr::Node{T}, ops::OperatorEnum, X::Matrix{T}) where T
+    try
+        expr(X,ops)
+    catch e
+        if e isa DomainError
+            T(NaN)
+        else
+            rethrow(e)
+        end
+    end
+end
+
 evaluate(expr, point::Point) = lambdify(expr, keys(point)...)(values(point)...)
