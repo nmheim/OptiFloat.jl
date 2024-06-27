@@ -11,7 +11,7 @@ const Batch{syms,N,T} = NamedTuple{syms, <:NTuple{N,Vector{T}}} where {syms,N,T<
 
 include("sample.jl")
 include("evaluate.jl")
-include("oracle.jl")
+include("error.jl")
 include("rules.jl")
 
 rewrite_once(x, theory) = [x]
