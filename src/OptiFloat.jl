@@ -12,6 +12,7 @@ const Batch{syms,N,T} = NamedTuple{syms, <:NTuple{N,Vector{T}}} where {syms,N,T<
 include("sample.jl")
 include("evaluate.jl")
 include("oracle.jl")
+include("rules.jl")
 
 rewrite_once(x, theory) = [x]
 function rewrite_once(expr::Expr, theory)
@@ -29,11 +30,11 @@ function rewrite_once(expr::Expr, theory)
     rws
 end
 
-recursive_rewrite(x, theory) = [x]
-function recursive_rewrite(expr::Expr, theory)
-    if iscall(expr)
+recursive_rewrite(x, theory, depth=3) = [x]
+function recursive_rewrite(expr::Expr, theory, depth=3)
+    if iscall(expr) && depth>0
         op = operation(expr)
-        argss = Iterators.product([recursive_rewrite(a, theory) for a in arguments(expr)]...) |> collect |> vec
+        argss = Iterators.product([recursive_rewrite(a, theory, depth-1) for a in arguments(expr)]...) |> collect |> vec
         rwo = [rewrite_once(Expr(:call, op, args...), theory) for args in argss]
         rws = reduce(vcat, rwo)
         rws

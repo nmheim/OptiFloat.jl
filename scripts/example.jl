@@ -1,11 +1,13 @@
 using Metatheory
+using OptiFloat
 using OptiFloat: all_subexpressions, evaluate_exact, accuracy,
-    sample_bitpattern, ulpdistance, biterror, lambdify, biterrorscore, local_biterror, @dynexpr, evaluate_approx, recursive_rewrite
+    sample_bitpattern, ulpdistance, biterror, lambdify, biterrorscore, local_biterror, @dynexpr,
+    evaluate_approx, recursive_rewrite
 
 # define expression
 T = Float16
-expr = :((-1b - sqrt(b^2 - 4*a*c)) / (2*a))
-dexpr, ops, syms = eval(:(@dynexpr $T $expr))
+orig_expr = :((-1x2 - sqrt(x2^2 - 4*x1*x3)) / (2*x3))
+dexpr, ops, syms = eval(:(@dynexpr $T $orig_expr))
 
 # compute local error
 X = sample_bitpattern(dexpr, ops, T, 3, 1000)
@@ -18,19 +20,23 @@ d = Dict(e => local_biterror(e,ops,X) for e in all_subexpressions(dexpr))
 include("example_rules.jl")
 using DynamicExpressions
 toexpr(e::Node) = Meta.parse(repr(e))
+replace_syms(s, syms::Dict) = haskey(syms,s) ? syms[s] : s
+function replace_syms(expr::Expr, syms::Dict)
+    cs = [replace_syms(e, syms) for e in children(expr)]
+    maketerm(Expr, head(expr), cs, nothing)
+end
 expr = toexpr(worst_expr)
-expr = :(-b - sqrt(b^2 - 4*a*c))
-rws = recursive_rewrite(expr,REWRITE_THEORY)
-improved = map(rws) do rw
-    simplify(rw, SIMPLIFY_THEORY, steps=3)
-end |> unique
-improved = improved[2]
 
-orig_expr = :((-(b) - sqrt(b^2 - 4*a*c)) / (2*a))
-r = eval(:(@rule a b c $expr --> $(improved)))
-new = recursive_rewrite(orig_expr, [r])[2:end] |> only
-new = simplify(new, SIMPLIFY_THEORY)
-new = recursive_rewrite(new, [@rule x -x --> -1x])[2:end] |> only
+rws = recursive_rewrite(expr,OptiFloat.REWRITE_THEORY)
+improved = map(rws) do rw
+    simplify(rw, OptiFloat.SIMPLIFY_THEORY, steps=3)
+end |> unique
+improved = improved[3]
+
+
+r = eval(:(@rule x1 x2 x3 $expr --> $(improved)))
+new = simplify(orig_expr, vcat(SIMPLIFY_THEORY,[r]))
+new = replace_syms(new, Dict(:x1=>:a, :x2=>:b, :x3=>:c))
 
 new_dexpr, new_ops, syms = eval(:(@dynexpr $T $new))
 x = reshape(T[1,-1e2,1], 3, 1)
