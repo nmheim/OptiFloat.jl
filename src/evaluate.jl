@@ -24,9 +24,9 @@ evaluate_exact(x::Symbol, p::Union{<:Point,<:Batch}; kw...) = p[x]
 evaluate_exact(x::Number, p::Union{<:Point,<:Batch}; kw...) = x
 
 Base.isfinite(x::Interval) = isbounded(x)
-function evaluate_exact(expr::Node{Interval{BigFloat}}, ops::OperatorEnum, X::Matrix{Interval{BigFloat}}; init_precision::Int=53, max_precision::Int=1500)
+function evaluate_exact(expr::Node, ops::OperatorEnum, X::AbstractMatrix{Interval{BigFloat}}; init_precision::Int=53, max_precision::Int=1500)
     precision_intervals = setprecision(init_precision) do
-        expr(X, ops)
+        evaluate(expr, ops, X)
     end
 
     # check if we found an interval that only contains one number 𝑅𝑝(𝑦1) = 𝑦∗ = 𝑅𝑝(𝑦2)
@@ -40,7 +40,7 @@ function evaluate_exact(expr::Node{Interval{BigFloat}}, ops::OperatorEnum, X::Ma
     end
 end
 
-function evaluate_exact(expr::Node{T}, ops::OperatorEnum, X::Matrix{T}; kw...) where T
+function evaluate_exact(expr::Node, ops::OperatorEnum, X::AbstractMatrix; kw...)
     evaluate_exact(
         convert(Node{Interval{BigFloat}},expr),
         ops,
@@ -49,16 +49,36 @@ function evaluate_exact(expr::Node{T}, ops::OperatorEnum, X::Matrix{T}; kw...) w
     )
 end
 
-function evaluate_approx(expr::Node{T}, ops::OperatorEnum, X::Matrix{T}) where T
-    try
-        expr(X,ops)
-    catch e
-        if e isa DomainError
-            T(NaN)
-        else
-            rethrow(e)
-        end
-    end
+function evaluate_approx(expr, ops::OperatorEnum, x::AbstractVector)
+    expr(reshape(x,1,:),ops)
+end
+function evaluate_approx(expr, ops::OperatorEnum, xs::AbstractMatrix)
+    vec(mapreduce(x -> evaluate_approx(expr, ops, x), hcat, eachcol(xs)))
 end
 
-evaluate(expr, point::Point) = lambdify(expr, keys(point)...)(values(point)...)
+evaluate(args...) = evaluate_approx(args...)
+
+struct Regimes{T}
+    regs::T
+end
+function (regs::Regimes)(x::AbstractVector, ops::OperatorEnum)
+    for regime in regs.regs
+        if regime.low < x[1] <= regime.high
+            return regime.expr(reshape(x,1,1), ops)
+        end
+    end
+    error("No applicable regime.")
+end
+(regs::Regimes)(X::AbstractMatrix, ops::OperatorEnum) = mapreduce(c -> regs(c,ops), hcat, eachcol(X))
+
+function evaluate_exact(regimes::Regimes, ops::OperatorEnum, x::AbstractVector; kw...)
+    @assert size(x,1) == 1
+    for regime in regimes.regs
+        if regime.low < x[1] <= regime.high
+            return evaluate_exact(regime.expr, ops, reshape(x,1,1); kw...)
+        end
+    end
+    error("No applicable regime.")
+end
+evaluate_exact(regimes::Regimes, ops::OperatorEnum, X::AbstractMatrix; kw...) =
+    mapreduce(c -> evaluate_exact(regimes,ops,c), hcat, eachcol(X))

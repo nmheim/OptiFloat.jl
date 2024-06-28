@@ -32,6 +32,21 @@ function sample_bitpattern(T::Type{<:AbstractFloat})
     mant = _sample(n_mant)
     frombits(T, sign, expo, mant)
 end
+function sample_bitpattern(T::Type, low, high, shape::Int...)
+    res = if low==high
+        [T(low) for _ in 1:prod(shape)]
+    else
+        xs = T[]
+        while length(xs) < prod(shape)
+            x = sample_bitpattern(T)
+            if low < x < high
+                push!(xs,x)
+            end
+        end
+        xs
+    end
+    reshape(res, shape...)
+end
 
 function frombits(T::Type{<:AbstractFloat}, sign, exponent, mantissa)::T
     n_sign, n_expo, n_mant = _bits(T)

@@ -16,28 +16,28 @@ function ulpdistance(a::F, b::F) where F<:AbstractFloat
     return abs(a_int - b_int)
 end
 
-function biterror(f, args::T...; kw...) where T<:AbstractFloat
-    y_exact = evaluate_exact(f, args...; kw...)
+#function biterror(f, args::T...; kw...) where T<:AbstractFloat
+#    y_exact = evaluate_exact(f, args...; kw...)
+#    y_approx = try
+#        f(args...)
+#    catch e
+#        if e isa DomainError
+#            T(NaN)
+#        else
+#            rethrow(e)
+#        end
+#    end
+#    ulps = ulpdistance(y_approx, convert(T,y_exact))
+#    T(ulps==0 ? 0 : log2(ulps))
+#end
+#function biterror(expr::Expr, point::Point; kw...)
+#    g = lambdify(expr, keys(point)...)
+#    biterror(g, values(point)...; kw...)
+#end
+function biterror(expr, target, ops::OperatorEnum, X::Matrix{T}; accum=mean) where T
+    y_exact = evaluate_exact(target, ops, X)
     y_approx = try
-        f(args...)
-    catch e
-        if e isa DomainError
-            T(NaN)
-        else
-            rethrow(e)
-        end
-    end
-    ulps = ulpdistance(y_approx, convert(T,y_exact))
-    T(ulps==0 ? 0 : log2(ulps))
-end
-function biterror(expr::Expr, point::Point; kw...)
-    g = lambdify(expr, keys(point)...)
-    biterror(g, values(point)...; kw...)
-end
-function biterror(expr::Node{T}, ops::OperatorEnum, X::Matrix{T}) where T
-    y_exact = evaluate_exact(expr, ops, X)
-    y_approx = try
-        expr(X,ops)
+        evaluate_approx(expr, ops, X)
     catch e
         if e isa DomainError
             T(NaN)
@@ -49,8 +49,9 @@ function biterror(expr::Node{T}, ops::OperatorEnum, X::Matrix{T}) where T
     map(zip(y_approx, y_exact)) do (ya, ye)
         ulp = ulpdistance(ya, convert(T,ye))
         T(ulp==0 ? 0 : log2(ulp))
-    end
+    end |> accum
 end
+biterror(expr, ops::OperatorEnum, X::Matrix{T}; accum=mean) where T = biterror(expr,expr,ops,X,accum=accum)
 
 function biterrorscore(f, args::T...; kw...) where T<:AbstractFloat
     err = biterror(f, args...; kw...)
