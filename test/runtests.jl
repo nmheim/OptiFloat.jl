@@ -1,6 +1,8 @@
 using Test
 using OptiFloat
-using OptiFloat: frombits, sample_bitpattern, evaluate_exact, all_subexpressions, local_cost, accuracy, ulpdistance, cost
+using OptiFloat: frombits, sample_bitpattern, evaluate_exact, all_subexpressions, accuracy,
+    ulpdistance, biterror, local_biterror
+using DynamicExpressions: OperatorEnum, Node
 
 @testset "Sample float bitpatterns" begin
     splitafter(vec, idx) = vec[1:idx], vec[idx+1:end]
@@ -48,14 +50,20 @@ end
 end
 
 
-@testset "Cost" begin
+@testset "Biterror" begin
     @test ulpdistance(Float16(0), Float16(1)) == 15360
 
     T = Float16
     x = T(5e3)
     f(x) = x+1-x
     # first 14 significant bits should be incorrect
-    @assert round(Int, cost(f, x)) == 14
+    @assert round(Int, biterror(f, x)) == 14
+
+    a = Node{T}(feature=1)
+    ops = OperatorEnum(binary_operators=[+,-])
+    expr = a + 1 - a
+    X = reshape([x], 1, 1)
+    @test round(Int, only(biterror(expr, ops, X))) == 14
 end
 
 
@@ -64,14 +72,6 @@ end
    x = T(5.13e3)
    f(x,y) = x + 1 - y
    @test accuracy(f, x, x) == 0
-end
-
-using OptiFloat: @subfunctions, _subfunctions
-@testset "subexpressions / subfunctions" begin
-    expr = :(x + 1 - y)
-    fns = @subfunctions x + 1 - y
-    @info fns fns[1](1,2)
-    error()
 end
 
 @testset "Local biterror dynamic expression" begin
@@ -83,7 +83,7 @@ end
     e = local_biterror(expression, operators, x)
     @test e ≈ T(log2(ulpdistance(T(0), T(1))))
 
-    d = Dict(e => local_biterror(e,operators,X) for e in all_subexpressions(expression))
+    d = Dict(e => local_biterror(e,operators,x) for e in all_subexpressions(expression))
     @test d isa Dict{Node{T},T}
 
     target = Dict(
@@ -93,24 +93,4 @@ end
         a => 0
     )
     @test target==d
-end
-
-
-@testset "Local cost" begin
-    expr = :(x + 1 - y)
-
-    T = Float16
-    x = T(5.13e3)
-    point = (;x=x, y=x)
-
-    d = Dict(e => local_cost(e,point) for e in all_subexpressions(expr))
-    target = Dict(1 => 0, :(x + 1) => 0, :((x + 1) - y) => ulpdistance(T(0), T(1)), :x => 0, :y => 0)
-    @test d == target
-
-    batch = (;
-        x = zeros(T,3) .+ x,
-        y = zeros(T,3) .+ x
-    )
-    d = Dict(e => local_cost(e,batch) for e in all_subexpressions(expr))
-    @test d == target
 end
