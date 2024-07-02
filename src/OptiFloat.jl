@@ -78,9 +78,9 @@ function dynexpr(T::Type{<:Number}, expr::Expr)
     node_to_syms = Dict(Symbol(string(Node{T}(feature=i)))=>s for (i,s) in enumerate(syms))
     unary, binary = unary_binary_ops(expr)
     quote
-        $(nodes...)
-        operators = OperatorEnum(; binary_operators=$binary, unary_operators=$unary)
-        $expr, operators, e->toexpr(e, $node_to_syms)
+        let $(nodes...), operators=OperatorEnum(; binary_operators=$binary, unary_operators=$unary)
+            ($expr, operators, e->toexpr(e, $node_to_syms))
+        end
     end
 end
 
@@ -88,5 +88,42 @@ macro dynexpr(T, expr)
     :($(dynexpr(eval(T), expr)))
 end
 
+function simplify(expr, theory; steps=1, timeout=10)
+    for _ in 1:steps
+        g = EGraph(expr)
+        p = SaturationParams(
+            timeout = timeout,
+            scheduler = Schedulers.BackoffScheduler,
+            schedulerparams = (match_limit = 6000, ban_length = 5),
+            timer = false,
+        )
+        saturate!(g, theory)
+        expr = extract!(g, astsize)
+    end
+    expr
+end
+
+
+struct Candidate{D,O,A,F}
+     expr::Expr
+     dexpr::D
+     ops::O
+     used::Base.RefValue{Bool}
+     errors::A
+     toexpr::F
+end
+function Candidate(expr, dexpr, ops, toexpr, points::AbstractMatrix)
+    errs = biterror(dexpr,ops,points,accum=identity)
+    Candidate(expr, dexpr, ops, Ref(false), errs, toexpr)
+end
+function Candidate(expr, points::AbstractMatrix{T}) where T
+    dexpr, ops, toexpr = eval(:(@dynexpr($T, $(expr))))
+    Candidate(expr, dexpr, ops, toexpr, points)
+end
+
+function Base.show(io::IO, c::Candidate)
+    u = c.used[] ? "✓" : "×"
+    print(io, "$u E=$(mean(c.errors)) : $(c.expr)")
+end
 
 end # module OptiFloat

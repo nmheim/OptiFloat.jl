@@ -3,64 +3,85 @@ using DynamicExpressions
 using OptiFloat
 using OptiFloat: all_subexpressions, evaluate_exact, accuracy,
     sample_bitpattern, ulpdistance, biterror, lambdify, biterrorscore, local_biterror, @dynexpr,
-    evaluate_approx, recursive_rewrite
+    evaluate_approx, recursive_rewrite, simplify, Candidate
 
-function simplify(expr, theory; steps=1)
-    for _ in 1:steps
-        g = EGraph(expr)
-        p = SaturationParams(
-            timeout = 10,
-            scheduler = Schedulers.BackoffScheduler,
-            schedulerparams = (match_limit = 6000, ban_length = 5),
-            timer = false,
-        )
-        saturate!(g, theory)
-        expr = extract!(g, astsize)
+
+function first_unused(candidates)
+    for c in candidates
+        if !(c.used[])
+            return c
+        end
     end
-    expr
+    error("No more unused candidates!")
 end
 
+function make_candidate(expr::Expr, points)
+    dexpr, ops, toexpr = eval(:(@dynexpr($T, $(expr))))
+    make_candidate(expr, points, dexpr, ops, toexpr)
+end
+function make_candidate(expr::Expr, points, dexpr, ops, toexpr)
+    @info "make candi" expr
+    (;
+     expr=expr,
+     dexpr=dexpr,
+     ops=ops,
+     used=Ref(false),
+     errors=biterror(dexpr,ops,points,accum=identity),
+     toexpr=toexpr,
+    )
+end
 
 T = Float16
 orig_expr = :((-b - sqrt(b^2 - (4*a)*c)) / (2*c))
-dexpr, ops, toexpr = eval(:(@dynexpr($T, $orig_expr)))
-@info "defined expression" orig_expr
+dexpr, ops, toexpr = eval(:(@dynexpr($T, $(orig_expr))))
+points = sample_bitpattern(dexpr, ops, T, 3, 8000)
+candidates = Any[ Candidate(orig_expr, points) ]
 
-@info "computing local error"
-X = sample_bitpattern(dexpr, ops, T, 3, 1000)
-d = Dict(e => local_biterror(e,ops,X) for e in all_subexpressions(dexpr))
 
-(error, worst_expr) = findmax(d)
-@info "picked expression with highest local error" worst_expr error
+#function optifloat!(candidates, points::Matrix{T}) where T
+    candidate = first_unused(candidates)
+    
+    @info "Computing local error..."
+    local_errs = Dict(e => local_biterror(e,ops,points) for e in all_subexpressions(dexpr))
+    
+    (err, worst_expr) = findmax(local_errs)
+    @info "Expression with highest local error" worst_expr err
+    
+    @info "Recursive rewrite to obtain new candidate expressions"
+    expr = candidate.toexpr(worst_expr)
+    new_candidates = recursive_rewrite(expr,OptiFloat.REWRITE_THEORY)[1:10]
+    
+    @info "Simplifying candidates"
+    all_improved = map(new_candidates) do newc
+        simplified = simplify(newc, OptiFloat.SIMPLIFY_THEORY, steps=3)
+    end |> unique
+    theories = map(all_improved) do improved
+        r = eval(:(@rule a b c $expr --> $(improved)))
+        RewriteRule[r]
+    end
+    
+    @info "Reconstruct with simplified candidates"
+    all_simplified = map(theories) do t
+        e = rewrite(candidate.expr, t)
+        simplify(e, OptiFloat.SIMPLIFY_THEORY, steps=3)
+    end |> unique
+    
+    results = map(all_simplified) do simpl
+        new_dexpr, new_ops, _ = eval(:(@dynexpr $T $simpl))
+        (new_dexpr, new_ops)
+    end
 
-@info "recursive rewrite to obtain new candidate expressions"
-expr = toexpr(worst_expr)
-candidates = recursive_rewrite(expr,OptiFloat.REWRITE_THEORY)[1:10]
+    new_cs = Any[]
+    for simpl in all_simplified
+        new_candiate = Candidate(simpl, points)
+        if any([any(new_candiate.errors .< c.errors) for c in candidates])
+            push!(new_cs, new_candiate)
+        end
+    end
 
-@info "simplify rewritten"
-all_improved = map(candidates) do cand
-    simplify(cand, OptiFloat.SIMPLIFY_THEORY, steps=3)
-end |> unique
-theories = map(all_improved) do improved
-    r = eval(:(@rule a b c $expr --> $(improved)))
-    RewriteRule[r]
-end
-all_simplified = map(theories) do t
-    e = rewrite(orig_expr, t)
-    simplify(e, OptiFloat.SIMPLIFY_THEORY, steps=3)
-end |> unique
+    candidates = vcat(candidates, new_cs)
+    candidate.used[] = true
+#end
 
-results = map(all_simplified) do simpl
-    new_dexpr, new_ops, _ = eval(:(@dynexpr $T $simpl))
-    (new_dexpr, new_ops)
-end
 
-x = reshape(T[1,-1e2,1], 3, 1)
-for (new_dexpr, new_ops) in results
-    old = dexpr(x,ops)[1]
-    new = new_dexpr(x,new_ops)[1]
-    exact = evaluate_exact(dexpr,ops,x)[1]
-    @info "Compare old/new" old new exact
-end
-
-@info "infer regimes... not done yet"
+# optifloat!(candidates, points)
