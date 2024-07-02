@@ -1,8 +1,9 @@
 using Test
 using OptiFloat
 using OptiFloat: frombits, sample_bitpattern, evaluate_exact, all_subexpressions, accuracy,
-    ulpdistance, biterror, local_biterror
+    ulpdistance, biterror, local_biterror, Regimes
 using DynamicExpressions: OperatorEnum, Node
+
 
 @testset "Sample float bitpatterns" begin
     splitafter(vec, idx) = vec[1:idx], vec[idx+1:end]
@@ -66,6 +67,24 @@ end
     @test round(Int, only(biterror(expr, ops, X))) == 14
 end
 
+@testset "Evaluate regimes" begin
+    T = Float64
+    x1 = Node{T}(feature=1)
+    ops = OperatorEnum(binary_operators=[+,-,^,*,/], unary_operators=[-,sqrt])
+    e1 =  1.0 / ((-1.0 * x1) + sqrt((x1 ^ 2.0) - 1.0))
+    e2 = (-1.0 * x1) - sqrt((x1 ^ 2.0) - 1.0)
+
+    regs = Regimes((e1,-Inf,-1.0), (e2,-1.0,Inf))
+
+    xs = reshape(T[-100, 1, 100], 1, :)
+    res = evaluate_exact(regs, ops, xs)
+    res2 = vcat(evaluate_exact(e1, ops, xs[:,1:1]), evaluate_exact(e2, ops, xs[:,2:3]))
+    @test all(res .== res2)
+
+    @test biterror(regs, e1, ops, xs) == 0
+    @test biterror(e1, e1, ops, xs) > 0
+    @test biterror(e2, e1, ops, xs) > 0
+end
 
 @testset "Accuracy" begin
    T = Float16

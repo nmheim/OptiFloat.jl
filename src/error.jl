@@ -34,10 +34,10 @@ end
 #    g = lambdify(expr, keys(point)...)
 #    biterror(g, values(point)...; kw...)
 #end
-function biterror(expr, target, ops::OperatorEnum, X::Matrix{T}; accum=mean) where T
-    y_exact = evaluate_exact(target, ops, X)
+function biterror(expr, target, ops::OperatorEnum, x::AbstractVector{T}) where T
+    y_exact = evaluate_exact(target, ops, reshape(x,:,1)) |> only
     y_approx = try
-        evaluate_approx(expr, ops, X)
+        evaluate_approx(expr, ops, x)
     catch e
         if e isa DomainError
             T(NaN)
@@ -46,10 +46,27 @@ function biterror(expr, target, ops::OperatorEnum, X::Matrix{T}; accum=mean) whe
         end
     end
 
-    map(zip(y_approx, y_exact)) do (ya, ye)
-        ulp = ulpdistance(ya, convert(T,ye))
-        T(ulp==0 ? 0 : log2(ulp))
-    end |> accum
+    ulp = ulpdistance(y_approx, convert(T,y_exact))
+    T(ulp==0 ? 0 : log2(ulp))
+end
+
+function biterror(expr, target, ops::OperatorEnum, X::AbstractMatrix{T}; accum=mean) where T
+    #y_exact = evaluate_exact(target, ops, X)
+    #y_approx = try
+    #    evaluate_approx(expr, ops, X)
+    #catch e
+    #    if e isa DomainError
+    #        T(NaN)
+    #    else
+    #        rethrow(e)
+    #    end
+    #end
+
+    #map(zip(y_approx, y_exact)) do (ya, ye)
+    #    ulp = ulpdistance(ya, convert(T,ye))
+    #    T(ulp==0 ? 0 : log2(ulp))
+    #end |> accum
+    map(x -> biterror(expr, target, ops, x), eachcol(X)) |> vec |> accum
 end
 biterror(expr, ops::OperatorEnum, X::Matrix{T}; accum=mean) where T = biterror(expr,expr,ops,X,accum=accum)
 
