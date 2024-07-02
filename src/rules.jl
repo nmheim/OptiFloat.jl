@@ -112,17 +112,17 @@ theories = (;
     #   @rule "flip3-+" a b (a+b) --> (((a^3)+(b^3))/((a*a)+((b*b)-(a*b))))
     #   @rule "flip3--" a b (a-b) --> (((a^3)-(b^3))/((a*a)+((b*b)+(a*b))))
     #],
-    #fractions_distribute = [
-    #   @rule "div-sub" a c b ((a-b)/c) --> ((a/c)-(b/c))
-    #   @rule "times-frac" a c b d ((a*b)/(c*d)) --> ((a/c)*(b/d))
-    #],
-    #fractions_transform = [
-    #   @rule "sub-div" a c b ((a/c)-(b/c)) --> ((a-b)/c)
-    #   @rule "frac-add" a c b d ((a/b)+(c/d)) --> (((a*d)+(b*c))/(b*d))
-    #   @rule "frac-sub" a c b d ((a/b)-(c/d)) --> (((a*d)-(b*c))/(b*d))
-    #   @rule "frac-times" a c b d ((a/b)*(c/d)) --> ((a*c)/(b*d))
-    #   @rule "frac-2neg" a b (a/b) --> (neg(a)/neg(b))
-    #],
+    fractions_distribute = [
+       @rule "div-sub" a c b ((a-b)/c) --> ((a/c)-(b/c))
+       @rule "times-frac" a c b d ((a*b)/(c*d)) --> ((a/c)*(b/d))
+    ],
+    fractions_transform = [
+       @rule "sub-div" a c b ((a/c)-(b/c)) --> ((a-b)/c)
+       @rule "frac-add" a c b d ((a/b)+(c/d)) --> (((a*d)+(b*c))/(b*d))
+       @rule "frac-sub" a c b d ((a/b)-(c/d)) --> (((a*d)-(b*c))/(b*d))
+       @rule "frac-times" a c b d ((a/b)*(c/d)) --> ((a*c)/(b*d))
+       @rule "frac-2neg" a b (a/b) --> (neg(a)/neg(b))
+    ],
     squares_reduce = [
        @rule "rem-square-sqrt" x (sqrt(x)*sqrt(x)) --> x
        @rule "rem-sqrt-square" x sqrt((x*x)) --> fabs(x)
@@ -482,4 +482,6 @@ SIMPLIFY_THEORY = convert(Vector{RewriteRule}, reduce(∪, [
    theories.squares_reduce,
    theories.squares_transform,
    theories.pow_canonicalize,
+   theories.fractions_distribute,
+   theories.fractions_transform,
 ]))

@@ -53,7 +53,8 @@ function evaluate_approx(expr, ops::OperatorEnum, x::AbstractVector)
     expr(reshape(x,1,:),ops)
 end
 function evaluate_approx(expr, ops::OperatorEnum, xs::AbstractMatrix)
-    vec(mapreduce(x -> evaluate_approx(expr, ops, x), hcat, eachcol(xs)))
+    #vec(mapreduce(x -> evaluate_approx(expr, ops, x), hcat, eachcol(xs)))
+    expr(xs, ops, early_exit=Val(false))
 end
 
 evaluate(args...) = evaluate_approx(args...)

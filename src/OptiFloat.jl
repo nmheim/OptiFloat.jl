@@ -53,6 +53,10 @@ function unary_binary_ops(expr)
         nargs = maximum([m.nargs-1 for m in methods(op)])
         if nargs > 1
             push!(binary, op)
+            # special case for e.g.: -1 or -x
+            if op == -
+                push!(unary, op)
+            end
         else
             push!(unary, op)
         end
@@ -60,19 +64,28 @@ function unary_binary_ops(expr)
     (unary, binary)
 end
 
-function _dynexpr(T::Type{<:Number}, expr::Expr)
+replace_syms(s, syms::Dict) = haskey(syms,s) ? syms[s] : s
+function replace_syms(expr::Expr, syms::Dict)
+    cs = [replace_syms(e, syms) for e in children(expr)]
+    maketerm(Expr, head(expr), cs, nothing)
+end
+
+toexpr(e::Node, symbol_map) = replace_syms(Meta.parse(repr(e)), symbol_map)
+
+function dynexpr(T::Type{<:Number}, expr::Expr)
     syms = sort(_symbols(expr))
     nodes = [:($s = Node{$T}(feature=$i)) for (i,s) in enumerate(syms)]
+    node_to_syms = Dict(Symbol(string(Node{T}(feature=i)))=>s for (i,s) in enumerate(syms))
     unary, binary = unary_binary_ops(expr)
     quote
         $(nodes...)
         operators = OperatorEnum(; binary_operators=$binary, unary_operators=$unary)
-        $expr, operators, $syms
+        $expr, operators, e->toexpr(e, $node_to_syms)
     end
 end
 
 macro dynexpr(T, expr)
-    :($(_dynexpr(eval(T), expr)))
+    :($(dynexpr(eval(T), expr)))
 end
 
 
