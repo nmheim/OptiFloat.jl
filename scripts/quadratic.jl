@@ -16,9 +16,9 @@ function first_unused(candidates)
 end
 
 T = Float16
-orig_expr = :((-b - sqrt(b^2 - (4*a)*c)) / (2*c))
+orig_expr = :((-b - sqrt(b^2 - 4*c)) / (2*c))
 dexpr = parse_expression(orig_expr, Node{T})
-points = sample_bitpattern(dexpr, T, 3, 8000)
+points = sample_bitpattern(dexpr, T, 2, 8000)
 candidates = [Candidate(dexpr, points)]
 
 
@@ -33,7 +33,7 @@ candidates = [Candidate(dexpr, points)]
     
     @info "Recursive rewrite to obtain new candidate expressions"
     expr = candidate.toexpr(worst_expr)
-    new_candidates = recursive_rewrite(expr,OptiFloat.REWRITE_THEORY)[1:10]
+    new_candidates = recursive_rewrite(expr,OptiFloat.REWRITE_THEORY)#[1:10]
     
     @info "Simplifying candidates"
     all_improved = map(new_candidates) do newc
