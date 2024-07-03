@@ -1,9 +1,9 @@
 using Metatheory
 using DynamicExpressions
 using OptiFloat
-using OptiFloat: all_subexpressions, evaluate_exact, accuracy,
-    sample_bitpattern, ulpdistance, biterror, lambdify, biterrorscore, local_biterror, @dynexpr,
-    evaluate_approx, recursive_rewrite, simplify, Candidate
+using OptiFloat: all_subexpressions, evaluate_exact,
+    sample_bitpattern, ulpdistance, biterror, biterrorscore,
+    evaluate_approx, recursive_rewrite, simplify, Candidate, local_biterrors
 
 
 function first_unused(candidates)
@@ -15,34 +15,18 @@ function first_unused(candidates)
     error("No more unused candidates!")
 end
 
-function make_candidate(expr::Expr, points)
-    dexpr, ops, toexpr = eval(:(@dynexpr($T, $(expr))))
-    make_candidate(expr, points, dexpr, ops, toexpr)
-end
-function make_candidate(expr::Expr, points, dexpr, ops, toexpr)
-    @info "make candi" expr
-    (;
-     expr=expr,
-     dexpr=dexpr,
-     ops=ops,
-     used=Ref(false),
-     errors=biterror(dexpr,ops,points,accum=identity),
-     toexpr=toexpr,
-    )
-end
-
 T = Float16
 orig_expr = :((-b - sqrt(b^2 - (4*a)*c)) / (2*c))
-dexpr, ops, toexpr = eval(:(@dynexpr($T, $(orig_expr))))
-points = sample_bitpattern(dexpr, ops, T, 3, 8000)
-candidates = Any[ Candidate(orig_expr, points) ]
+dexpr = parse_expression(orig_expr, Node{T})
+points = sample_bitpattern(dexpr, T, 3, 8000)
+candidates = [Candidate(dexpr, points)]
 
 
 #function optifloat!(candidates, points::Matrix{T}) where T
     candidate = first_unused(candidates)
     
     @info "Computing local error..."
-    local_errs = Dict(e => local_biterror(e,ops,points) for e in all_subexpressions(dexpr))
+    local_errs = local_biterrors(dexpr, points)
     
     (err, worst_expr) = findmax(local_errs)
     @info "Expression with highest local error" worst_expr err
@@ -62,18 +46,14 @@ candidates = Any[ Candidate(orig_expr, points) ]
     
     @info "Reconstruct with simplified candidates"
     all_simplified = map(theories) do t
-        e = rewrite(candidate.expr, t)
+        e = rewrite(candidate.toexpr(candidate.expr.tree), t)
         simplify(e, OptiFloat.SIMPLIFY_THEORY, steps=3)
     end |> unique
     
-    results = map(all_simplified) do simpl
-        new_dexpr, new_ops, _ = eval(:(@dynexpr $T $simpl))
-        (new_dexpr, new_ops)
-    end
-
     new_cs = Any[]
     for simpl in all_simplified
-        new_candiate = Candidate(simpl, points)
+        new_dexpr = parse_expression(simpl, Node{T})
+        new_candiate = Candidate(new_dexpr, points)
         if any([any(new_candiate.errors .< c.errors) for c in candidates])
             push!(new_cs, new_candiate)
         end
@@ -81,6 +61,7 @@ candidates = Any[ Candidate(orig_expr, points) ]
 
     candidates = vcat(candidates, new_cs)
     candidate.used[] = true
+    display(candidates)
 #end
 
 

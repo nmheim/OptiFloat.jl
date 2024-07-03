@@ -1,6 +1,7 @@
 module OptiFloat
 
 using DynamicExpressions: Node, OperatorEnum
+using DynamicExpressions
 using TermInterface
 using IntervalArithmetic: Interval, interval, bounds, isthin, mid, isbounded
 using Statistics: mean
@@ -45,10 +46,16 @@ end
 
 _symbols(e::Expr) = filter(x -> x isa Symbol, all_subexpressions(e))
 
+function DynamicExpressions.parse_expression(ex, node_type)
+    vars = string.(_symbols(ex))
+    (unaops, binops) = unary_binary_ops(ex)
+    parse_expression(ex, variable_names=vars, binary_operators=binops, unary_operators=unaops, node_type=node_type)
+end
+
 function unary_binary_ops(expr)
     ops = eval.(unique(operation.(filter(iscall, all_subexpressions(expr)))))
-    unary = []
-    binary = []
+    unary = Function[]
+    binary = Function[]
     for op in ops
         nargs = maximum([m.nargs-1 for m in methods(op)])
         if nargs > 1
@@ -72,22 +79,6 @@ end
 
 toexpr(e::Node, symbol_map) = replace_syms(Meta.parse(repr(e)), symbol_map)
 
-function dynexpr(T::Type{<:Number}, expr::Expr)
-    syms = sort(_symbols(expr))
-    nodes = [:($s = Node{$T}(feature=$i)) for (i,s) in enumerate(syms)]
-    node_to_syms = Dict(Symbol(string(Node{T}(feature=i)))=>s for (i,s) in enumerate(syms))
-    unary, binary = unary_binary_ops(expr)
-    quote
-        let $(nodes...), operators=OperatorEnum(; binary_operators=$binary, unary_operators=$unary)
-            ($expr, operators, e->toexpr(e, $node_to_syms))
-        end
-    end
-end
-
-macro dynexpr(T, expr)
-    :($(dynexpr(eval(T), expr)))
-end
-
 function simplify(expr, theory; steps=1, timeout=10)
     for _ in 1:steps
         g = EGraph(expr)
@@ -97,33 +88,29 @@ function simplify(expr, theory; steps=1, timeout=10)
             schedulerparams = (match_limit = 6000, ban_length = 5),
             timer = false,
         )
-        saturate!(g, theory)
+        saturate!(g, theory, p)
         expr = extract!(g, astsize)
     end
     expr
 end
 
 
-struct Candidate{D,O,A,F}
-     expr::Expr
-     dexpr::D
-     ops::O
+struct Candidate{E<:Expression,A<:AbstractArray,F<:Function}
+     expr::E
      used::Base.RefValue{Bool}
      errors::A
      toexpr::F
 end
-function Candidate(expr, dexpr, ops, toexpr, points::AbstractMatrix)
-    errs = biterror(dexpr,ops,points,accum=identity)
-    Candidate(expr, dexpr, ops, Ref(false), errs, toexpr)
+function Candidate(expr, points::AbstractMatrix)
+    errs = biterror(expr,points,accum=identity)
+    function toexpr(n::Node)::Expr
+        Meta.parse(string_tree(n, expr.metadata.operators, variable_names=expr.metadata.variable_names))
+    end
+    Candidate(expr, Ref(false), errs, toexpr)
 end
-function Candidate(expr, points::AbstractMatrix{T}) where T
-    dexpr, ops, toexpr = eval(:(@dynexpr($T, $(expr))))
-    Candidate(expr, dexpr, ops, toexpr, points)
-end
-
 function Base.show(io::IO, c::Candidate)
-    u = c.used[] ? "✓" : "×"
-    print(io, "$u E=$(mean(c.errors)) : $(c.expr)")
+    u = c.used[] ? "✓" : "⊚"
+    print(io, "$u E=$(mean(c.errors)) : $(string_tree(c.expr))")
 end
 
 end # module OptiFloat

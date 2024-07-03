@@ -1,3 +1,4 @@
+sample_bitpattern(expr::Expression, args...) = sample_bitpattern(expr.tree, expr.metadata.operators, args...)
 function sample_bitpattern(expr::Node, ops::OperatorEnum, T::Type, inputsize::Int, batchsize::Int)
     samples = []
     while length(samples)<batchsize
