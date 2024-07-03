@@ -46,17 +46,18 @@ function evaluate_exact(f, args::Union{<:Number,Int}...; init_precision::Int=53,
 end
 
 evaluate(args...) = evaluate_approx(args...)
-evaluate_approx(expr::Expression, x::AbstractArray) = evaluate_approx(expr.tree, expr.metadata.operators, x)
+evaluate_approx(expr::Expression, x::AbstractArray) =
+    evaluate_approx(expr.tree, expr.metadata.operators, x)
 evaluate_approx(tree::Node, ops::OperatorEnum, x::AbstractVector) =
     tree(reshape(x,:,1), ops) |> only
 evaluate_approx(tree::Node, ops::OperatorEnum, xs::AbstractMatrix) =
     map(x -> evaluate_approx(tree, ops, x), eachcol(xs))
 
 
-struct Regime{T}
+struct Regime{T,VL<:AbstractVector{T},VH<:AbstractVector{T}}
     expr::Expression{T}
-    low::T
-    high::T
+    low::VL
+    high::VH
     "low index"
     li::Union{Int,Nothing}
     "high index"
@@ -70,24 +71,42 @@ struct Regimes{A<:AbstractVector{<:Regime}}
 end
 Regimes(rs::Tuple{E,A,B}...) where {A,B,E<:Expression} = Regimes([Regime(args...) for args in rs])
 
+lowleft(x::AbstractVector, y::AbstractVector) = all(x .< y)
+lowlefteq(x::AbstractVector, y::AbstractVector) = all(x .<= y)
+Base.contains(x::AbstractVector, point::AbstractVector, y::AbstractVector) =
+    lowleft(x,point) && lowlefteq(point,y)
+Base.contains(r::Regime, x::AbstractVector) = contains(r.low, x, r.high)
+Base.contains(rs::Regimes, x::AbstractVector) = any(contains(r,x) for r in rs.regs)
+
 function evaluate_approx(regs::Regimes, x::AbstractVector)
     for regime in regs.regs
-        if regime.low < x[1] <= regime.high
+        if contains(regime, x)
             return evaluate_approx(regime.expr, x)
         end
     end
     error("No applicable regime.")
 end
+function evaluate_approx(regs::Regimes, ops::OperatorEnum, x::AbstractVector)
+    for regime in regs.regs
+        if contains(regime, x)
+            return evaluate_approx(regime.expr.tree, ops, x)
+        end
+    end
+    error("No applicable regime.")
+end
+evaluate_approx(regimes::Regimes, X::AbstractMatrix; kw...) =
+    map(c -> evaluate_approx(regimes,c), eachcol(X))
+
 
 Base.join(a::Regimes, b::Regimes) = Regimes(vcat(a.regs, b.regs))
 Base.join(a::Regimes, r::Regime) = Regimes(vcat(a.regs, [r]))
 function Base.show(io::IO, rs::Regimes{A}) where A
-    println(io, "Regimes{$A}")
+    println(io, "Regimes:")
     for (i,r) in enumerate(rs.regs)
         if i==length(rs.regs)
-            print(io, " ($(r.low), $(r.high))   : $(r.expr)")
+            print(io, "  ($(r.low), $(r.high))   : $(string_tree(r.expr))")
         else
-            println(io, " ($(r.low), $(r.high))   : $(r.expr)")
+            println(io, "  ($(r.low), $(r.high))   : $(string_tree(r.expr))")
         end
     end
 end
@@ -95,11 +114,20 @@ end
 function evaluate_exact(regimes::Regimes, x::AbstractVector; kw...)
     @assert size(x,1) == 1
     for regime in regimes.regs
-        if regime.low < x[1] <= regime.high
+        if contains(regime, x)
             return evaluate_exact(regime.expr, x; kw...)
         end
     end
     error("No applicable regime.")
 end
+#function evaluate_exact(regimes::Regimes, ops::OperatorEnum, x::AbstractVector; kw...)
+#    @assert size(x,1) == 1
+#    for regime in regimes.regs
+#        if contains(regime, x)
+#            return evaluate_exact(regime.expr, ops, x; kw...)
+#        end
+#    end
+#    error("No applicable regime.")
+#end
 evaluate_exact(regimes::Regimes, X::AbstractMatrix; kw...) =
     map(c -> evaluate_exact(regimes,c), eachcol(X))

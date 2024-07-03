@@ -51,6 +51,8 @@ function biterror(orig, target, ops::OperatorEnum, X::AbstractMatrix{T}; accum=m
     #end |> accum
     map(x -> biterror(orig, target, ops, x), eachcol(X)) |> vec |> accum
 end
+biterror(reg::Regimes, target::Expression, X::AbstractArray; kw...) =
+    biterror(reg, target.tree, target.metadata.operators, X; kw...)
 biterror(expr::Expression, X::AbstractArray; kw...) =
     biterror(expr.tree, expr.tree, expr.metadata.operators, X;kw...)
 

@@ -44,32 +44,38 @@ function recursive_rewrite(expr::Expr, theory, depth=3)
     end
 end
 
-_symbols(e::Expr) = filter(x -> x isa Symbol, all_subexpressions(e))
-
-function DynamicExpressions.parse_expression(ex, node_type)
-    vars = string.(_symbols(ex))
-    (unaops, binops) = unary_binary_ops(ex)
-    parse_expression(ex, variable_names=vars, binary_operators=binops, unary_operators=unaops, node_type=node_type)
-end
-
-function unary_binary_ops(expr)
-    ops = eval.(unique(operation.(filter(iscall, all_subexpressions(expr)))))
-    unary = Function[]
-    binary = Function[]
-    for op in ops
-        nargs = maximum([m.nargs-1 for m in methods(op)])
-        if nargs > 1
-            push!(binary, op)
-            # special case for e.g.: -1 or -x
-            if op == -
-                push!(unary, op)
-            end
-        else
-            push!(unary, op)
-        end
-    end
-    (unary, binary)
-end
+#_symbols(e::Expr) = filter(x -> x isa Symbol, all_subexpressions(e))
+#
+#function DynamicExpressions.parse_expression(ex, node_type)
+#    vars = sort(string.(_symbols(ex)))
+#    (unaops, binops) = unary_binary_ops(ex)
+#    parse_expression(
+#        ex,
+#        variable_names=vars,
+#        binary_operators=binops,
+#        unary_operators=unaops,
+#        node_type=node_type
+#    )
+#end
+#
+#function unary_binary_ops(expr)
+#    ops = eval.(unique(operation.(filter(iscall, all_subexpressions(expr)))))
+#    unary = Function[]
+#    binary = Function[]
+#    for op in ops
+#        nargs = maximum([m.nargs-1 for m in methods(op)])
+#        if nargs > 1
+#            push!(binary, op)
+#            # special case for e.g.: -1 or -x
+#            if op == -
+#                push!(unary, op)
+#            end
+#        else
+#            push!(unary, op)
+#        end
+#    end
+#    (unary, binary)
+#end
 
 replace_syms(s, syms::Dict) = haskey(syms,s) ? syms[s] : s
 function replace_syms(expr::Expr, syms::Dict)
