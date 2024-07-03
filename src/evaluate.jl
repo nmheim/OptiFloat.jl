@@ -1,3 +1,32 @@
+using DynamicExpressions: Expression, Node, OperatorEnum
+
+
+evaluate_exact(expr::Expression{T}, x::AbstractArray{T}) where T =
+    evaluate_exact(expr.tree, expr.metadata.operators, x)
+
+function evaluate_exact(tree::Node{I}, ops::OperatorEnum, X::AbstractMatrix{I}; init_precision::Int=53, max_precision::Int=1500) where {I<:Interval{BigFloat}}
+    precision_intervals = setprecision(init_precision) do
+        evaluate(tree, ops, X)
+    end
+
+    # check if we found an interval that only contains one number 𝑅𝑝(𝑦1) = 𝑦∗ = 𝑅𝑝(𝑦2)
+    new_precision = init_precision * 2
+    if all(isthin.(precision_intervals)) || new_precision > max_precision
+        setprecision(init_precision) do
+            mid.(precision_intervals)
+        end
+    else
+        evaluate_exact(tree, ops, X, init_precision=new_precision, max_precision=max_precision)
+    end
+end
+
+function evaluate_exact(tree::Node{T}, ops::OperatorEnum, X::AbstractMatrix{T}; kw...) where {T<:AbstractFloat}
+    I = Interval{BigFloat}
+    evaluate_exact(convert(Node{I}, tree), ops, convert(Matrix{I},X); kw...)
+end
+evaluate_exact(tree::Node, ops::OperatorEnum, x::AbstractVector; kw...) = 
+    only(evaluate_exact(tree, ops, reshape(x,:,1)))
+
 function evaluate_exact(f, args::Union{<:Number,Int}...; init_precision::Int=53, max_precision::Int=1500)
     # compute interval for higher precision
     precision_interval = setprecision(init_precision) do
@@ -16,53 +45,16 @@ function evaluate_exact(f, args::Union{<:Number,Int}...; init_precision::Int=53,
     end
 end
 
-function evaluate_exact(expr::Expr, point::Union{<:Point,<:Batch}; kw...)
-    g = lambdify(expr, keys(point)...)
-    evaluate_exact.(g, values(point)...; kw...)
-end
-evaluate_exact(x::Symbol, p::Union{<:Point,<:Batch}; kw...) = p[x]
-evaluate_exact(x::Number, p::Union{<:Point,<:Batch}; kw...) = x
-
-Base.isfinite(x::Interval) = isbounded(x)
-function evaluate_exact(expr::Node, ops::OperatorEnum, X::AbstractMatrix{Interval{BigFloat}}; init_precision::Int=53, max_precision::Int=1500)
-    precision_intervals = setprecision(init_precision) do
-        evaluate(expr, ops, X)
-    end
-
-    # check if we found an interval that only contains one number 𝑅𝑝(𝑦1) = 𝑦∗ = 𝑅𝑝(𝑦2)
-    new_precision = init_precision * 2
-    if all(isthin.(precision_intervals)) || new_precision > max_precision
-        setprecision(init_precision) do
-            mid.(precision_intervals)
-        end
-    else
-        evaluate_exact(expr, ops, X, init_precision=new_precision, max_precision=max_precision)
-    end
-end
-
-function evaluate_exact(expr::Node, ops::OperatorEnum, X::AbstractMatrix; kw...)
-    evaluate_exact(
-        convert(Node{Interval{BigFloat}},expr),
-        ops,
-        convert(Matrix{Interval{BigFloat}},X);
-        kw...
-    )
-end
-evaluate_exact(expr::Node, ops::OperatorEnum, x::AbstractVector; kw...) =
-    only(evaluate_exact(expr, ops, reshape(x,:,1)))
-
-function evaluate_approx(expr, ops::OperatorEnum, x::AbstractVector)
-    expr(reshape(x,:,1),ops) |> only
-end
-function evaluate_approx(expr, ops::OperatorEnum, xs::AbstractMatrix)
-    map(x -> evaluate_approx(expr, ops, x), eachcol(xs))
-end
-
 evaluate(args...) = evaluate_approx(args...)
+evaluate_approx(expr::Expression, x::AbstractArray) = evaluate_approx(expr.tree, expr.metadata.operators, x)
+evaluate_approx(tree::Node, ops::OperatorEnum, x::AbstractVector) =
+    tree(reshape(x,:,1), ops) |> only
+evaluate_approx(tree::Node, ops::OperatorEnum, xs::AbstractMatrix) =
+    map(x -> evaluate_approx(tree, ops, x), eachcol(xs))
 
 
 struct Regime{T}
-    expr::Node{T}
+    expr::Expression{T}
     low::T
     high::T
     "low index"
@@ -76,12 +68,12 @@ Regime(expr, low, high) = Regime(expr, low, high, nothing, nothing)
 struct Regimes{A<:AbstractVector{<:Regime}}
     regs::A
 end
-Regimes(rs::Tuple{E,A,B}...) where {A,B,E<:Node} = Regimes([Regime(args...) for args in rs])
-function evaluate_approx(regs::Regimes, ops::OperatorEnum, x::AbstractVector)
+Regimes(rs::Tuple{E,A,B}...) where {A,B,E<:Expression} = Regimes([Regime(args...) for args in rs])
+
+function evaluate_approx(regs::Regimes, x::AbstractVector)
     for regime in regs.regs
         if regime.low < x[1] <= regime.high
-            #@info x[1] regime
-            return evaluate_approx(regime.expr, ops, x)
+            return evaluate_approx(regime.expr, x)
         end
     end
     error("No applicable regime.")
@@ -100,16 +92,14 @@ function Base.show(io::IO, rs::Regimes{A}) where A
     end
 end
 
-
-
-function evaluate_exact(regimes::Regimes, ops::OperatorEnum, x::AbstractVector; kw...)
+function evaluate_exact(regimes::Regimes, x::AbstractVector; kw...)
     @assert size(x,1) == 1
     for regime in regimes.regs
         if regime.low < x[1] <= regime.high
-            return evaluate_exact(regime.expr, ops, x; kw...)
+            return evaluate_exact(regime.expr, x; kw...)
         end
     end
     error("No applicable regime.")
 end
-evaluate_exact(regimes::Regimes, ops::OperatorEnum, X::AbstractMatrix; kw...) =
-    map(c -> evaluate_exact(regimes,ops,c), eachcol(X))
+evaluate_exact(regimes::Regimes, X::AbstractMatrix; kw...) =
+    map(c -> evaluate_exact(regimes,c), eachcol(X))

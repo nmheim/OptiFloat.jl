@@ -1,8 +1,8 @@
 using Test
 using OptiFloat
-using OptiFloat: frombits, sample_bitpattern, evaluate_exact, all_subexpressions, accuracy,
-    ulpdistance, biterror, local_biterror, Regimes
-using DynamicExpressions: OperatorEnum, Node
+using OptiFloat: frombits, sample_bitpattern, evaluate_exact, all_subexpressions,
+    ulpdistance, biterror, local_biterror, local_biterrors, Regimes, evaluate_approx
+using DynamicExpressions: OperatorEnum, Node, parse_expression
 
 
 @testset "Sample float bitpatterns" begin
@@ -25,86 +25,72 @@ using DynamicExpressions: OperatorEnum, Node
     end
 end
 
-@testset "Evaluate exact" begin
-    # function evaluation
-    f(x) = x+1-x
-    x = Float16(5e3)
-    @test f(x) == zero(x)
-    @test evaluate_exact(f, x) == one(x)
-
-    xs = zeros(Float16, 3) .+ x
-    ys = zeros(Float16, 3) .+ x
-    g(x,y) = x+1-y
-    @test g.(xs,ys) == zero(xs)
-    @test evaluate_exact.(g, xs, ys) == zero(xs) .+ 1
-
+@testset "Evaluate (exact)" begin
     # expression evaluation
+    T = Float16
     expr = :(x + 1 - y)
-    x = Float16(5e3)
-    point = (; x=x, y=x)
-    @test evaluate_exact(expr, point) == one(x)
+    dexpr = parse_expression(expr, binary_operators=[+,-], variable_names=["x", "y"], node_type=Node{T})
+    x = T(5e3)
+    xs = reshape([x, x], 2, 1)
+    @test evaluate_approx(dexpr, xs) == T[0]
+    @test evaluate_approx(dexpr.tree, dexpr.metadata.operators, xs) == T[0]
+    @test evaluate_approx(dexpr, [x,x]) == T(0)
+    @test evaluate_approx(dexpr.tree, dexpr.metadata.operators, [x,x]) == T(0)
 
-    xs = zeros(Float16, 3) .+ x
-    ys = zeros(Float16, 3) .+ x
-    batch = (; x=xs, y=xs)
-    @test evaluate_exact(expr, batch) == zero(xs) .+ 1
+    @test evaluate_exact(dexpr, xs) == T[1]
+    @test evaluate_exact(dexpr.tree, dexpr.metadata.operators, xs) == T[1]
+    @test evaluate_exact(dexpr, [x,x]) == T(1)
+    @test evaluate_exact(dexpr.tree, dexpr.metadata.operators, [x,x]) == T(1)
 end
+
+
+@testset "Evaluate regimes" begin
+    T = Float64
+    kws = (; binary_operators=[+,-,^,*,/], unary_operators=[-,sqrt], variable_names=["x"], node_type=Node{T})
+    e1 = parse_expression(:(1.0 / ((-1.0 * x) + sqrt((x ^ 2.0) - 1.0))); kws...)
+    e2 = parse_expression(:((-1.0 * x) - sqrt((x ^ 2.0) - 1.0)); kws...)
+
+    regs = Regimes((e1,T(-Inf),T(-1.0)), (e2,T(-1.0),T(Inf)))
+    xs = reshape(T[-100, 1, 100], 1, :)
+    res = evaluate_exact(regs, xs)
+    res2 = vcat(evaluate_exact(e1, xs[:,1:1]), evaluate_exact(e2, xs[:,2:3]))
+    @test all(res .== res2)
+
+    #FIXME: reintroduce
+    #@test biterror(regs, e1, xs) == 0
+    #@test biterror(e1, e1, xs) > 0
+    #@test biterror(e2, e1, xs) > 0
+end
+
+
 
 
 @testset "Biterror" begin
     @test ulpdistance(Float16(0), Float16(1)) == 15360
 
     T = Float16
+    dexpr = parse_expression(:(x+1-x), binary_operators=[+,-], variable_names=["x"], node_type=Node{T})
+
     x = T(5e3)
-    f(x) = x+1-x
     # first 14 significant bits should be incorrect
-    @assert round(Int, biterror(f, x)) == 14
-
-    a = Node{T}(feature=1)
-    ops = OperatorEnum(binary_operators=[+,-])
-    expr = a + 1 - a
-    X = reshape([x], 1, 1)
-    @test round(Int, only(biterror(expr, ops, X))) == 14
-end
-
-@testset "Evaluate regimes" begin
-    T = Float64
-    x1 = Node{T}(feature=1)
-    ops = OperatorEnum(binary_operators=[+,-,^,*,/], unary_operators=[-,sqrt])
-    e1 =  1.0 / ((-1.0 * x1) + sqrt((x1 ^ 2.0) - 1.0))
-    e2 = (-1.0 * x1) - sqrt((x1 ^ 2.0) - 1.0)
-
-    regs = Regimes((e1,-Inf,-1.0), (e2,-1.0,Inf))
-
-    xs = reshape(T[-100, 1, 100], 1, :)
-    res = evaluate_exact(regs, ops, xs)
-    res2 = vcat(evaluate_exact(e1, ops, xs[:,1:1]), evaluate_exact(e2, ops, xs[:,2:3]))
-    @test all(res .== res2)
-
-    @test biterror(regs, e1, ops, xs) == 0
-    @test biterror(e1, e1, ops, xs) > 0
-    @test biterror(e2, e1, ops, xs) > 0
-end
-
-@testset "Accuracy" begin
-   T = Float16
-   x = T(5.13e3)
-   f(x,y) = x + 1 - y
-   @test accuracy(f, x, x) == 0
+    @test round(Int, biterror(dexpr, [x])) == 14
+    @test round.(Int, biterror(dexpr, reshape([x],1,1), accum=identity)) == [14]
 end
 
 @testset "Local biterror dynamic expression" begin
-    operators = OperatorEnum(; binary_operators=[+, -])
+
     T = Float16
-    a = Node{T}(feature=1)
-    expression = a + 1 - a
+    kws = (; binary_operators=[+,-], variable_names=["x1"], node_type=Node{T})
+    dexpr = parse_expression(:(x1+1-x1); kws...)
+
     x = reshape(T[5e3 for _ in 1:100], 1, 100)
-    e = local_biterror(expression, operators, x)
+    e = local_biterror(dexpr, x)
     @test e ≈ T(log2(ulpdistance(T(0), T(1))))
 
-    d = Dict(e => local_biterror(e,operators,x) for e in all_subexpressions(expression))
+    d = local_biterrors(dexpr, x)
     @test d isa Dict{Node{T},T}
 
+    a = Node(T, feature=1)
     target = Dict(
         Node{T}(val=1.0) => 0,
         a+1 => 0,

@@ -6,8 +6,8 @@ using IntervalArithmetic: Interval, interval, bounds, isthin, mid, isbounded
 using Statistics: mean
 
 
-const Point{syms,N,T} = NamedTuple{syms, <:NTuple{N,T}} where {syms,N,T<:Real}
-const Batch{syms,N,T} = NamedTuple{syms, <:NTuple{N,Vector{T}}} where {syms,N,T<:Real}
+# FIXME: type piracy
+Base.isfinite(x::Interval) = isbounded(x)
 
 include("sample.jl")
 include("evaluate.jl")

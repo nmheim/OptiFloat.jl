@@ -16,28 +16,11 @@ function ulpdistance(a::F, b::F) where F<:AbstractFloat
     return abs(a_int - b_int)
 end
 
-#function biterror(f, args::T...; kw...) where T<:AbstractFloat
-#    y_exact = evaluate_exact(f, args...; kw...)
-#    y_approx = try
-#        f(args...)
-#    catch e
-#        if e isa DomainError
-#            T(NaN)
-#        else
-#            rethrow(e)
-#        end
-#    end
-#    ulps = ulpdistance(y_approx, convert(T,y_exact))
-#    T(ulps==0 ? 0 : log2(ulps))
-#end
-#function biterror(expr::Expr, point::Point; kw...)
-#    g = lambdify(expr, keys(point)...)
-#    biterror(g, values(point)...; kw...)
-#end
-function biterror(expr, target, ops::OperatorEnum, x::AbstractVector{T}) where T
+
+function biterror(orig, target, ops::OperatorEnum, x::AbstractVector{T}) where T
     y_exact = evaluate_exact(target, ops, reshape(x,:,1)) |> only
     y_approx = try
-        evaluate_approx(expr, ops, x)
+        evaluate_approx(orig, ops, x)
     catch e
         if e isa DomainError
             T(NaN)
@@ -50,7 +33,7 @@ function biterror(expr, target, ops::OperatorEnum, x::AbstractVector{T}) where T
     T(ulp==0 ? 0 : log2(ulp))
 end
 
-function biterror(expr, target, ops::OperatorEnum, X::AbstractMatrix{T}; accum=mean) where T
+function biterror(orig, target, ops::OperatorEnum, X::AbstractMatrix{T}; accum=mean) where T
     #y_exact = evaluate_exact(target, ops, X)
     #y_approx = try
     #    evaluate_approx(expr, ops, X)
@@ -66,22 +49,15 @@ function biterror(expr, target, ops::OperatorEnum, X::AbstractMatrix{T}; accum=m
     #    ulp = ulpdistance(ya, convert(T,ye))
     #    T(ulp==0 ? 0 : log2(ulp))
     #end |> accum
-    map(x -> biterror(expr, target, ops, x), eachcol(X)) |> vec |> accum
+    map(x -> biterror(orig, target, ops, x), eachcol(X)) |> vec |> accum
 end
-biterror(expr, ops::OperatorEnum, X::Matrix{T}; accum=mean) where T = biterror(expr,expr,ops,X,accum=accum)
+biterror(expr::Expression, X::AbstractArray; kw...) =
+    biterror(expr.tree, expr.tree, expr.metadata.operators, X;kw...)
 
-function biterrorscore(f, args::T...; kw...) where T<:AbstractFloat
-    err = biterror(f, args...; kw...)
+function biterrorscore(expr, x::AbstractArray{T}; kw...) where T<:AbstractFloat
+    err = biterror(expr, x; kw...)
     score = 1 - (err / (sizeof(T)*8))
     convert(T, score)
-end
-
-isconst(::Expr) = false
-isconst(::Symbol) = true
-isconst(::Number) = true
-function subfunctions(expr::Expr, args::Symbol...)
-    exprs = filter(!isconst, all_subexpressions(expr))
-    Dict(e=>lambdify(e, args...) for e in exprs)
 end
 
 function all_subexpressions(expr::Union{Expr,Node})
@@ -118,15 +94,17 @@ end
 TermInterface.operation(e::Node) = e.op
 TermInterface.iscall(e::Node) = e.degree > 0
 
-function local_biterror(expr::Node{T}, ops::OperatorEnum, X::Matrix{T}; accum=mean) where T
-    if expr.degree==0 #|| expr.constant
+local_biterror(expr::Expression, x::AbstractArray) = local_biterror(expr.tree, expr.metadata.operators, x)
+
+function local_biterror(tree::Node{T}, ops::OperatorEnum, X::AbstractMatrix{T}; accum=mean) where T
+    if tree.degree==0 #|| tree.constant
         return T(0)
     end
     # each BigFloat from evaluate_exact might have different precision
-    exact_args = [evaluate_exact(a, ops, X) for a in arguments(expr)]
+    exact_args = [evaluate_exact(a, ops, X) for a in arguments(tree)]
     prec = maximum_precision(exact_args)
 
-    localf = expr.degree == 2 ? ops.binops[expr.op] : ops.unaops[expr.op]
+    localf = tree.degree == 2 ? ops.binops[tree.op] : ops.unaops[tree.op]
 
     approx_args = convert_args(T, exact_args)
     approx_result = localf.(approx_args...)
@@ -139,43 +117,7 @@ function local_biterror(expr::Node{T}, ops::OperatorEnum, X::Matrix{T}; accum=me
     T(ulps ≈ 0 ? 0 : log2(ulps))
 end
 
-function lambdify(expr, args...)
-    # TODO: surely there is a better way of doing this
-    # TODO: look at DynamicExpressions.jl ? 
-    fexpr = Expr(:->, Expr(:tuple, args...), expr)
-    f = eval(fexpr)
-    g(xs...) = Base.invokelatest(f, xs...)
-    g
-end
 
-function accuracy(f, args::Number...; kw...)
-    y_exact = evaluate_exact(f, args...; kw...)
-    y_approx = try
-        f(args...)
-    catch e
-        if e isa DomainError
-            BigFloat(NaN)
-        else
-            rethrow(e)
-        end
-    end
-    if isfinite(y_approx)
-        # special case close to zero
-        T = typeof(y_approx)
-        ε = eps(T)
-        if (-ε < y_approx < ε) && (-ε < y_exact < ε)
-            BigFloat(1)
-        else
-            setprecision(y_exact.prec) do
-                acc = 1 - abs((y_approx - y_exact) / maximum(abs.([y_approx, y_exact])))
-                max(acc, 0)
-            end :: BigFloat
-        end
-    else
-        BigFloat(0, y_exact.prec)
-    end
-end
-function accuracy(expr::Expr, point::Point; kw...)
-    g = lambdify(expr, keys(point)...)
-    accuracy(g, values(point)...; kw...)
-end
+local_biterrors(expr::Expression, x::AbstractArray) = local_biterrors(expr.tree, expr.metadata.operators, x)
+local_biterrors(tree::Node{T}, ops::OperatorEnum, X::AbstractMatrix{T}) where T =
+    Dict(e => local_biterror(e,ops,X) for e in all_subexpressions(tree))
