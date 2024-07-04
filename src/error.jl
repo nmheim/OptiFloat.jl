@@ -2,12 +2,12 @@ _inttype(::Type{Float16}) = Int16
 _inttype(::Type{Float32}) = Int32
 _inttype(::Type{Float64}) = Int64
 
-function ulpdistance(a::F, b::F) where F<:AbstractFloat
+function ulpdistance(a::F, b::F) where {F<:AbstractFloat}
     T = _inttype(F)
     a == b && return zero(T)
     isnan(a) || isnan(b) && return typemax(T)
     isinf(a) || isinf(b) && return typemax(T)
-    
+
     a_int = reinterpret(T, a)
     b_int = reinterpret(T, b)
 
@@ -16,9 +16,8 @@ function ulpdistance(a::F, b::F) where F<:AbstractFloat
     return abs(a_int - b_int)
 end
 
-
-function biterror(orig, target, ops::OperatorEnum, x::AbstractVector{T}) where T
-    y_exact = evaluate_exact(target, ops, reshape(x,:,1)) |> only
+function biterror(orig, target, ops::OperatorEnum, x::AbstractVector{T}) where {T}
+    y_exact = evaluate_exact(target, ops, reshape(x, :, 1)) |> only
     y_approx = try
         evaluate_approx(orig, ops, x)
     catch e
@@ -29,11 +28,11 @@ function biterror(orig, target, ops::OperatorEnum, x::AbstractVector{T}) where T
         end
     end
 
-    ulp = ulpdistance(y_approx, convert(T,y_exact))
-    T(ulp==0 ? 0 : log2(ulp))
+    ulp = ulpdistance(y_approx, convert(T, y_exact))
+    T(ulp == 0 ? 0 : log2(ulp))
 end
 
-function biterror(orig, target, ops::OperatorEnum, X::AbstractMatrix{T}; accum=mean) where T
+function biterror(orig, target, ops::OperatorEnum, X::AbstractMatrix{T}; accum=mean) where {T}
     #y_exact = evaluate_exact(target, ops, X)
     #y_approx = try
     #    evaluate_approx(expr, ops, X)
@@ -51,16 +50,19 @@ function biterror(orig, target, ops::OperatorEnum, X::AbstractMatrix{T}; accum=m
     #end |> accum
     map(x -> biterror(orig, target, ops, x), eachcol(X)) |> vec |> accum
 end
-biterror(reg::Regimes, target::Expression, X::AbstractArray; kw...) =
+function biterror(reg::Regimes, target::Expression, X::AbstractArray; kw...)
     biterror(reg, target.tree, target.metadata.operators, X; kw...)
-biterror(expr::Expression, target::Expression, X::AbstractArray; kw...) =
-    biterror(expr.tree, target.tree, expr.metadata.operators, X;kw...)
-biterror(expr::Expression, X::AbstractArray; kw...) =
-    biterror(expr.tree, expr.tree, expr.metadata.operators, X;kw...)
+end
+function biterror(expr::Expression, target::Expression, X::AbstractArray; kw...)
+    biterror(expr.tree, target.tree, expr.metadata.operators, X; kw...)
+end
+function biterror(expr::Expression, X::AbstractArray; kw...)
+    biterror(expr.tree, expr.tree, expr.metadata.operators, X; kw...)
+end
 
-function biterrorscore(expr, x::AbstractArray{T}; kw...) where T<:AbstractFloat
+function biterrorscore(expr, x::AbstractArray{T}; kw...) where {T<:AbstractFloat}
     err = biterror(expr, x; kw...)
-    score = 1 - (err / (sizeof(T)*8))
+    score = 1 - (err / (sizeof(T) * 8))
     convert(T, score)
 end
 
@@ -78,8 +80,8 @@ maximum_precision(::Int) = 0
 maximum_precision(x::AbstractFloat) = precision(x)
 maximum_precision(fs::Vector) = maximum(maximum_precision.(fs))
 
-convert_args(T::Type{<:AbstractFloat}, arg::Number) = convert(T,arg)
-convert_args(T::Type{<:AbstractFloat}, args::Vector) = convert_args.(T,args)
+convert_args(T::Type{<:AbstractFloat}, arg::Number) = convert(T, arg)
+convert_args(T::Type{<:AbstractFloat}, args::Vector) = convert_args.(T, args)
 
 function TermInterface.arguments(e::Node)
     if e.constant
@@ -98,10 +100,14 @@ end
 TermInterface.operation(e::Node) = e.op
 TermInterface.iscall(e::Node) = e.degree > 0
 
-local_biterror(expr::Expression, x::AbstractArray) = local_biterror(expr.tree, expr.metadata.operators, x)
+function local_biterror(expr::Expression, x::AbstractArray)
+    local_biterror(expr.tree, expr.metadata.operators, x)
+end
 
-function local_biterror(tree::Node{T}, ops::OperatorEnum, X::AbstractMatrix{T}; accum=mean) where T
-    if tree.degree==0 #|| tree.constant
+function local_biterror(
+    tree::Node{T}, ops::OperatorEnum, X::AbstractMatrix{T}; accum=mean
+) where {T}
+    if tree.degree == 0 #|| tree.constant
         return T(0)
     end
     # each BigFloat from evaluate_exact might have different precision
@@ -113,7 +119,7 @@ function local_biterror(tree::Node{T}, ops::OperatorEnum, X::AbstractMatrix{T}; 
     approx_args = convert_args(T, exact_args)
     approx_result = localf.(approx_args...)
 
-    exact_args = [BigFloat.(x,prec) for x in exact_args]
+    exact_args = [BigFloat.(x, prec) for x in exact_args]
     exact_result = evaluate_exact.(localf, exact_args...)
     ulps = setprecision(prec) do
         accum(ulpdistance.(approx_result, convert(Vector{T}, exact_result)))
@@ -121,7 +127,9 @@ function local_biterror(tree::Node{T}, ops::OperatorEnum, X::AbstractMatrix{T}; 
     T(ulps ≈ 0 ? 0 : log2(ulps))
 end
 
-
-local_biterrors(expr::Expression, x::AbstractArray) = local_biterrors(expr.tree, expr.metadata.operators, x)
-local_biterrors(tree::Node{T}, ops::OperatorEnum, X::AbstractMatrix{T}) where T =
-    Dict(e => local_biterror(e,ops,X) for e in all_subexpressions(tree))
+function local_biterrors(expr::Expression, x::AbstractArray)
+    local_biterrors(expr.tree, expr.metadata.operators, x)
+end
+function local_biterrors(tree::Node{T}, ops::OperatorEnum, X::AbstractMatrix{T}) where {T}
+    Dict(e => local_biterror(e, ops, X) for e in all_subexpressions(tree))
+end

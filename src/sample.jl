@@ -10,7 +10,7 @@ end
 function logsample(testfn::Function, T::Type, inputsize::Int, batchsize::Int)
     samples = Vector{T}[]
     while length(samples) < batchsize
-        x = rand([-1,1], inputsize) .* exp.(rand(T, inputsize) .* log(floatmax(T)))
+        x = rand([-1, 1], inputsize) .* exp.(rand(T, inputsize) .* log(floatmax(T)))
         try
             #if isfinite(evaluate_exact(expr, ops, x))
             if isfinite(testfn(x))
@@ -27,10 +27,12 @@ function logsample(testfn::Function, T::Type, inputsize::Int, batchsize::Int)
     reduce(hcat, samples)
 end
 
-sample_bitpattern(expr::Expression, args...) = sample_bitpattern(expr.tree, expr.metadata.operators, args...)
+function sample_bitpattern(expr::Expression, args...)
+    sample_bitpattern(expr.tree, expr.metadata.operators, args...)
+end
 function sample_bitpattern(expr::Node, ops::OperatorEnum, T::Type, inputsize::Int, batchsize::Int)
     samples = []
-    while length(samples)<batchsize
+    while length(samples) < batchsize
         X = sample_bitpattern(T, inputsize, 1)
         try
             y = evaluate_exact(expr, ops, X) |> only
@@ -47,10 +49,12 @@ function sample_bitpattern(expr::Node, ops::OperatorEnum, T::Type, inputsize::In
     end
     reduce(hcat, samples)
 end
-sample_bitpattern(T::Type, shape::Int...) = reshape(T[sample_bitpattern(T) for _ in 1:prod(shape)], shape...)
+function sample_bitpattern(T::Type, shape::Int...)
+    reshape(T[sample_bitpattern(T) for _ in 1:prod(shape)], shape...)
+end
 function sample_bitpattern(T::Type{<:AbstractFloat})
     n_sign, n_expo, n_mant = _bits(T)
-    _sample(n::Int) = rand(['0','1'], n)
+    _sample(n::Int) = rand(['0', '1'], n)
 
     # prevent nans/infs
     expo = _sample(n_expo)
@@ -63,14 +67,14 @@ function sample_bitpattern(T::Type{<:AbstractFloat})
     frombits(T, sign, expo, mant)
 end
 function sample_bitpattern(T::Type, low, high, shape::Int...)
-    res = if low==high
+    res = if low == high
         [T(low) for _ in 1:prod(shape)]
     else
         xs = T[]
         while length(xs) < prod(shape)
             x = sample_bitpattern(T)
             if low < x < high
-                push!(xs,x)
+                push!(xs, x)
             end
         end
         xs
@@ -80,9 +84,9 @@ end
 
 function frombits(T::Type{<:AbstractFloat}, sign, exponent, mantissa)::T
     n_sign, n_expo, n_mant = _bits(T)
-    @assert length(sign)==n_sign "$T must have $n_sign sign bit. Found: $(length(sign))"
-    @assert length(exponent)==n_expo "$T must have $n_expo exponent bits. Found: $(length(exponent))"
-    @assert length(mantissa)==n_mant "$T must have $n_mant mantissa bits. Found: $(length(mantissa))"
+    @assert length(sign) == n_sign "$T must have $n_sign sign bit. Found: $(length(sign))"
+    @assert length(exponent) == n_expo "$T must have $n_expo exponent bits. Found: $(length(exponent))"
+    @assert length(mantissa) == n_mant "$T must have $n_mant mantissa bits. Found: $(length(mantissa))"
     f = String(vcat(sign, exponent, mantissa))
     reinterpret(T, Meta.parse(string("0b", f)))
 end

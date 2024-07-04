@@ -1,100 +1,98 @@
 using Metatheory
 
 theories = (;
-    commutativity = [
-      @rule "+-commutative" a b (a+b) --> (b+a)
-      @rule "*-commutative" a b (a*b) --> (b*a)
+    commutativity=[
+        @rule "+-commutative" a b (a + b) --> (b + a)
+        @rule "*-commutative" a b (a * b) --> (b * a)
     ],
-    associativity = [
-       @rule "associate-+r+" a c b (a+(b+c)) --> ((a+b)+c)
-       @rule "associate-+l+" a c b ((a+b)+c) --> (a+(b+c))
-       @rule "associate-+r-" a c b (a+(b-c)) --> ((a+b)-c)
-       @rule "associate-+l-" a c b ((a-b)+c) --> (a-(b-c))
-       @rule "associate--r+" a c b (a-(b+c)) --> ((a-b)-c)
-       @rule "associate--l+" a c b ((a+b)-c) --> (a+(b-c))
-       @rule "associate--l-" a c b ((a-b)-c) --> (a-(b+c))
-       @rule "associate--r-" a c b (a-(b-c)) --> ((a-b)+c)
-       @rule "associate-*r*" a c b (a*(b*c)) --> ((a*b)*c)
-       @rule "associate-*l*" a c b ((a*b)*c) --> (a*(b*c))
-       @rule "associate-*r/" a c b (a*(b/c)) --> ((a*b)/c)
-       @rule "associate-*l/" a c b ((a/b)*c) --> ((a*c)/b)
-       @rule "associate-/r*" a c b (a/(b*c)) --> ((a/b)/c)
-       @rule "associate-/r/" a c b (a/(b/c)) --> ((a/b)*c)
-       @rule "associate-/l/" a c b ((b/c)/a) --> (b/(a*c))
-       @rule "associate-/l*" a c b ((b*c)/a) --> (b*(c/a))
+    associativity=[
+        @rule "associate-+r+" a c b (a + (b + c)) --> ((a + b) + c)
+        @rule "associate-+l+" a c b ((a + b) + c) --> (a + (b + c))
+        @rule "associate-+r-" a c b (a + (b - c)) --> ((a + b) - c)
+        @rule "associate-+l-" a c b ((a - b) + c) --> (a - (b - c))
+        @rule "associate--r+" a c b (a - (b + c)) --> ((a - b) - c)
+        @rule "associate--l+" a c b ((a + b) - c) --> (a + (b - c))
+        @rule "associate--l-" a c b ((a - b) - c) --> (a - (b + c))
+        @rule "associate--r-" a c b (a - (b - c)) --> ((a - b) + c)
+        @rule "associate-*r*" a c b (a * (b * c)) --> ((a * b) * c)
+        @rule "associate-*l*" a c b ((a * b) * c) --> (a * (b * c))
+        @rule "associate-*r/" a c b (a * (b / c)) --> ((a * b) / c)
+        @rule "associate-*l/" a c b ((a / b) * c) --> ((a * c) / b)
+        @rule "associate-/r*" a c b (a / (b * c)) --> ((a / b) / c)
+        @rule "associate-/r/" a c b (a / (b / c)) --> ((a / b) * c)
+        @rule "associate-/l/" a c b ((b / c) / a) --> (b / (a * c))
+        @rule "associate-/l*" a c b ((b * c) / a) --> (b * (c / a))
     ],
-    counting = [
-       @rule "count-2" x (x+x) --> (2*x)
+    counting=[@rule "count-2" x (x + x) --> (2 * x)],
+    distributivity=[
+        @rule "distribute-lft-in" a c b (a * (b + c)) --> ((a * b) + (a * c))
+        @rule "distribute-rgt-in" a c b (a * (b + c)) --> ((b * a) + (c * a))
+        @rule "distribute-lft-out" a c b ((a * b) + (a * c)) --> (a * (b + c))
+        @rule "distribute-lft-out--" a c b ((a * b) - (a * c)) --> (a * (b - c))
+        @rule "distribute-rgt-out" a c b ((b * a) + (c * a)) --> (a * (b + c))
+        @rule "distribute-rgt-out--" a c b ((b * a) - (c * a)) --> (a * (b - c))
+        @rule "distribute-lft1-in" a b ((b * a) + a) --> ((b + 1) * a)
+        @rule "distribute-rgt1-in" a c (a + (c * a)) --> ((c + 1) * a)
     ],
-    distributivity = [
-       @rule "distribute-lft-in" a c b (a*(b+c)) --> ((a*b)+(a*c))
-       @rule "distribute-rgt-in" a c b (a*(b+c)) --> ((b*a)+(c*a))
-       @rule "distribute-lft-out" a c b ((a*b)+(a*c)) --> (a*(b+c))
-       @rule "distribute-lft-out--" a c b ((a*b)-(a*c)) --> (a*(b-c))
-       @rule "distribute-rgt-out" a c b ((b*a)+(c*a)) --> (a*(b+c))
-       @rule "distribute-rgt-out--" a c b ((b*a)-(c*a)) --> (a*(b-c))
-       @rule "distribute-lft1-in" a b ((b*a)+a) --> ((b+1)*a)
-       @rule "distribute-rgt1-in" a c (a+(c*a)) --> ((c+1)*a)
+    distributivity_fp_safe=[
+        @rule "distribute-lft-neg-in" a b -(a * b) --> ((-a) * b)
+        @rule "distribute-rgt-neg-in" a b -(a * b) --> (a * (-b))
+        @rule "distribute-lft-neg-out" a b (-a) * b --> -(a * b)
+        @rule "distribute-rgt-neg-out" a b a * (-b) --> -(a * b)
+        @rule "distribute-neg-in" a b -(a + b) --> (-a) + (-b)
+        @rule "distribute-neg-out" a b (-a) + (-b) --> -(a + b)
+        @rule "distribute-frac-neg" a b (-a) / b --> -(a / b)
+        @rule "distribute-frac-neg2" a b a / (-b) --> -(a / b)
+        @rule "distribute-neg-frac" a b -(a / b) --> (-a) / b
+        @rule "distribute-neg-frac2" a b -(a / b) --> a / (-b)
     ],
-    distributivity_fp_safe = [
-       @rule "distribute-lft-neg-in" a b  -(a*b) --> ((-a)*b)
-       @rule "distribute-rgt-neg-in" a b  -(a*b) --> (a*(-b))
-       @rule "distribute-lft-neg-out" a b (-a)*b --> -(a*b)
-       @rule "distribute-rgt-neg-out" a b a*(-b) --> -(a*b)
-       @rule "distribute-neg-in" a b      -(a+b) --> (-a)+(-b)
-       @rule "distribute-neg-out" a b     (-a)+(-b) --> -(a+b)
-       @rule "distribute-frac-neg" a b    (-a)/b --> -(a/b)
-       @rule "distribute-frac-neg2" a b   a/(-b) --> -(a/b)
-       @rule "distribute-neg-frac" a b    -(a/b) --> (-a)/b
-       @rule "distribute-neg-frac2" a b   -(a/b) --> a/(-b)
+    cancel_sign_fp_safe=[
+        @rule "cancel-sign-sub" a c b a - ((-b) * c) --> a + (b * c)
+        @rule "cancel-sign-sub-inv" a c b a - (b * c) --> a + (-b) * c
     ],
-    cancel_sign_fp_safe = [
-       @rule "cancel-sign-sub" a c b     a-((-b)*c) --> a+(b*c)
-       @rule "cancel-sign-sub-inv" a c b a-(b*c) --> a+(-b)*c
-    ],
-    difference_of_squares_canonicalize = [
-       @rule "swap-sqr" a b ((a*b)*(a*b)) --> ((a*a)*(b*b))
-       @rule "unswap-sqr" a b ((a*a)*(b*b)) --> ((a*b)*(a*b))
-       @rule "difference-of-squares" a b ((a*a)-(b*b)) --> ((a+b)*(a-b))
-       @rule "difference-of-sqr-1" a ((a*a)-1) --> ((a+1)*(a-1))
-       @rule "difference-of-sqr--1" a ((a*a)+(-1)) --> ((a+1)*(a-1))
-       @rule "pow-sqr" a b ((a^b)*(a^b)) --> (a^(2*b))
+    difference_of_squares_canonicalize=[
+        @rule "swap-sqr" a b ((a * b) * (a * b)) --> ((a * a) * (b * b))
+        @rule "unswap-sqr" a b ((a * a) * (b * b)) --> ((a * b) * (a * b))
+        @rule "difference-of-squares" a b ((a * a) - (b * b)) --> ((a + b) * (a - b))
+        @rule "difference-of-sqr-1" a ((a * a) - 1) --> ((a + 1) * (a - 1))
+        @rule "difference-of-sqr--1" a ((a * a) + (-1)) --> ((a + 1) * (a - 1))
+        @rule "pow-sqr" a b ((a^b) * (a^b)) --> (a^(2 * b))
     ],
     #sqr_pow_expand = [
     #   @rule "sqr-pow" a b (a^b) --> ((a^(b/2))*(a^(b/2)))
     #],
-    difference_of_squares_flip = [
-       @rule "flip-+" a b a+b --> (a*a-b*b)/(a-b)
-       @rule "flip--" a b a-b --> (a*a-b*b)/(a+b)
+    difference_of_squares_flip=[
+        @rule "flip-+" a b a + b --> (a * a - b * b) / (a - b)
+        @rule "flip--" a b a - b --> (a * a - b * b) / (a + b)
     ],
-    id_reduce = [
-       @rule "remove-double-div" a (1/(1/a)) --> a
-       @rule "rgt-mult-inverse" a (a*(1/a)) --> 1
-       @rule "lft-mult-inverse" a ((1/a)*a) --> 1
+    id_reduce=[
+        @rule "remove-double-div" a (1 / (1 / a)) --> a
+        @rule "rgt-mult-inverse" a (a * (1 / a)) --> 1
+        @rule "lft-mult-inverse" a ((1 / a) * a) --> 1
     ],
-    id_reduce_fp_safe_nan = [
-       @rule "+-inverses" a (a-a) --> 0
-       @rule "div0" a (0/a) --> 0
-       @rule "mul0-lft" a (0*a) --> 0
-       @rule "mul0-rgt" a (a*0) --> 0
-       @rule "*-inverses" a (a/a) --> 1
+    id_reduce_fp_safe_nan=[
+        @rule "+-inverses" a (a - a) --> 0
+        @rule "div0" a (0 / a) --> 0
+        @rule "mul0-lft" a (0 * a) --> 0
+        @rule "mul0-rgt" a (a * 0) --> 0
+        @rule "*-inverses" a (a / a) --> 1
     ],
-    id_reduce_fp_safe = [
-       @rule "+-lft-identity" a (0+a) --> a
-       @rule "+-rgt-identity" a (a+0) --> a
-       @rule "--rgt-identity" a (a-0) --> a
-       @rule "sub0-neg" a (0-a) --> -a
-       @rule "remove-double-neg" a -(-a) --> a
-       @rule "*-lft-identity" a (1*a) --> a
-       @rule "*-rgt-identity" a (a*1) --> a
-       @rule "/-rgt-identity" a (a/1) --> a
-       @rule "mul-1-neg" a (-1*a) --> -a
+    id_reduce_fp_safe=[
+        @rule "+-lft-identity" a (0 + a) --> a
+        @rule "+-rgt-identity" a (a + 0) --> a
+        @rule "--rgt-identity" a (a - 0) --> a
+        @rule "sub0-neg" a (0 - a) --> -a
+        @rule "remove-double-neg" a -(-a) --> a
+        @rule "*-lft-identity" a (1 * a) --> a
+        @rule "*-rgt-identity" a (a * 1) --> a
+        @rule "/-rgt-identity" a (a / 1) --> a
+        @rule "mul-1-neg" a (-1 * a) --> -a
     ],
-    nan_transform_fp_safe = [
-       @rule "sub-neg" a b (a-b) --> (a+(-b))
-       @rule "unsub-neg" a b (a+(-b)) --> (a-b)
-       @rule "neg-sub0" b (-b) --> (0-b)
-       @rule "neg-mul-1" a (-a) --> (-1*a)
+    nan_transform_fp_safe=[
+        @rule "sub-neg" a b (a - b) --> (a + (-b))
+        @rule "unsub-neg" a b (a + (-b)) --> (a - b)
+        @rule "neg-sub0" b (-b) --> (0 - b)
+        @rule "neg-mul-1" a (-a) --> (-1 * a)
     ],
     #id_transform_safe = [
     #   @rule "div-inv" a b (a/b) --> (a*(1/b))
@@ -112,20 +110,20 @@ theories = (;
     #   @rule "flip3-+" a b (a+b) --> (((a^3)+(b^3))/((a*a)+((b*b)-(a*b))))
     #   @rule "flip3--" a b (a-b) --> (((a^3)-(b^3))/((a*a)+((b*b)+(a*b))))
     #],
-    fractions_distribute = [
-       @rule "div-sub" a c b ((a-b)/c) --> ((a/c)-(b/c))
-       @rule "times-frac" a c b d ((a*b)/(c*d)) --> ((a/c)*(b/d))
+    fractions_distribute=[
+        @rule "div-sub" a c b ((a - b) / c) --> ((a / c) - (b / c))
+        @rule "times-frac" a c b d ((a * b) / (c * d)) --> ((a / c) * (b / d))
     ],
-    fractions_transform = [
-       @rule "sub-div" a c b ((a/c)-(b/c)) --> ((a-b)/c)
-       @rule "frac-add" a c b d ((a/b)+(c/d)) --> (((a*d)+(b*c))/(b*d))
-       @rule "frac-sub" a c b d ((a/b)-(c/d)) --> (((a*d)-(b*c))/(b*d))
-       @rule "frac-times" a c b d ((a/b)*(c/d)) --> ((a*c)/(b*d))
-       @rule "frac-2neg" a b (a/b) --> (neg(a)/neg(b))
+    fractions_transform=[
+        @rule "sub-div" a c b ((a / c) - (b / c)) --> ((a - b) / c)
+        @rule "frac-add" a c b d ((a / b) + (c / d)) --> (((a * d) + (b * c)) / (b * d))
+        @rule "frac-sub" a c b d ((a / b) - (c / d)) --> (((a * d) - (b * c)) / (b * d))
+        @rule "frac-times" a c b d ((a / b) * (c / d)) --> ((a * c) / (b * d))
+        @rule "frac-2neg" a b (a / b) --> (neg(a) / neg(b))
     ],
-    squares_reduce = [
-       @rule "rem-square-sqrt" x (sqrt(x)*sqrt(x)) --> x
-       @rule "rem-sqrt-square" x sqrt((x*x)) --> fabs(x)
+    squares_reduce=[
+        @rule "rem-square-sqrt" x (sqrt(x) * sqrt(x)) --> x
+        @rule "rem-sqrt-square" x sqrt((x * x)) --> fabs(x)
     ],
     #squares_reduce_fp_sound = [
     #   @rule "sqr-neg" x (neg(x)*neg(x)) --> (x*x)
@@ -149,11 +147,11 @@ theories = (;
     #   @rule "sqrt-unprod" y x (sqrt(x)*sqrt(y)) --> sqrt((x*y))
     #   @rule "sqrt-undiv" y x (sqrt(x)/sqrt(y)) --> sqrt((x/y))
     #],
-    squares_transform = [
-       @rule "sqrt-pow1" y x sqrt((x^y)) --> (x^(y/2))
-       @rule "sqrt-prod" y x sqrt((x*y)) --> (sqrt(x)*sqrt(y))
-       @rule "sqrt-div" y x sqrt((x/y)) --> (sqrt(x)/sqrt(y))
-       @rule "add-sqr-sqrt" x x --> (sqrt(x)*sqrt(x))
+    squares_transform=[
+        @rule "sqrt-pow1" y x sqrt((x^y)) --> (x^(y / 2))
+        @rule "sqrt-prod" y x sqrt((x * y)) --> (sqrt(x) * sqrt(y))
+        @rule "sqrt-div" y x sqrt((x / y)) --> (sqrt(x) / sqrt(y))
+        @rule "add-sqr-sqrt" x x --> (sqrt(x) * sqrt(x))
     ],
     #cubes_reduce = [
     #   @rule "rem-cube-cbrt" x (cbrt(x)^3) --> x
@@ -212,9 +210,9 @@ theories = (;
     #pow_reduce = [
     #   @rule "unpow-1" a (a^-1) --> (1/a)
     #],
-    pow_reduce_fp_safe = [
-       @rule "unpow1" a (a^1) --> a
-       @rule "pow-base-1" a (1^a) --> 1
+    pow_reduce_fp_safe=[
+        @rule "unpow1" a (a^1) --> a
+        @rule "pow-base-1" a (1^a) --> 1
     ],
     #pow_reduce_fp_safe_nan = [
     #   @rule "unpow0" a (a^0) --> 1
@@ -222,13 +220,13 @@ theories = (;
     #pow_expand_fp_safe = [
     #   @rule "pow1" a a --> (a^1)
     #],
-    pow_canonicalize = [
-       @rule "exp-to-pow" a b exp((log(a)*b)) --> (a^b)
-       @rule "unpow1/2" a (a^1/2) --> sqrt(a)
-       @rule "unpow2" a (a^2) --> (a*a)
-       @rule "unpow3" a (a^3) --> ((a*a)*a)
-       @rule "unpow1/3" a (a^1/3) --> cbrt(a)
-       @rule "pow-plus" a b ((a^b)*a) --> (a^(b+1))
+    pow_canonicalize=[
+        @rule "exp-to-pow" a b exp((log(a) * b)) --> (a^b)
+        @rule "unpow1/2" a (a^1 / 2) --> sqrt(a)
+        @rule "unpow2" a (a^2) --> (a * a)
+        @rule "unpow3" a (a^3) --> ((a * a) * a)
+        @rule "unpow1/3" a (a^1 / 3) --> cbrt(a)
+        @rule "pow-plus" a b ((a^b) * a) --> (a^(b + 1))
     ],
     #pow_transform_sound = [
     #   @rule "pow-exp" a b (exp(a)^b) --> exp((a*b))
@@ -238,11 +236,11 @@ theories = (;
     #   @rule "pow-neg" a b (a^neg(b)) --> (1/(a^b))
     #   @rule "pow-div" a c b ((a^b)/(a^c)) --> (a^(b-c))
     #],
-    pow_specialize_sound = [
-       @rule "pow1/2" a sqrt(a) --> (a^1/2)
-       @rule "pow2" a (a*a) --> (a^2)
-       @rule "pow1/3" a cbrt(a) --> (a^1/3)
-       @rule "pow3" a ((a*a)*a) --> (a^3)
+    pow_specialize_sound=[
+        @rule "pow1/2" a sqrt(a) --> (a^1 / 2)
+        @rule "pow2" a (a * a) --> (a^2)
+        @rule "pow1/3" a cbrt(a) --> (a^1 / 3)
+        @rule "pow3" a ((a * a) * a) --> (a^3)
     ],
     #pow_transform = [
     #   @rule "pow-to-exp" a b (a^b) --> exp((log(a)*b))
@@ -452,36 +450,41 @@ theories = (;
     #   @rule "not-lte" y x not((x<=y)) --> (x>y)
     #   @rule "not-gte" y x not((x>=y)) --> (x<y)
     #],
-#branch_reduce = [
-#   @rule "if-true" y x (if (true) x y) --> x
-#   @rule "if-false" y x (if (false) x y) --> y
-#   @rule "if-same" x a (if a x x) --> x
-#   @rule "if-not" y x a (if (not a) x y) --> (if a y x)
-#   @rule "if-if-or" y x a b (if a x (if b x y)) --> (if (or a b) x y)
-#   @rule "if-if-or-not" y x a b (if a x (if b y x)) --> (if (or a (not b)) x y)
-#   @rule "if-if-and" y x a b (if a (if b x y) y) --> (if (and a b) x y)
-#   @rule "if-if-and-not" y x a b (if a (if b y x) y) --> (if (and a (not b)) x y)
-#],
+    #branch_reduce = [
+    #   @rule "if-true" y x (if (true) x y) --> x
+    #   @rule "if-false" y x (if (false) x y) --> y
+    #   @rule "if-same" x a (if a x x) --> x
+    #   @rule "if-not" y x a (if (not a) x y) --> (if a y x)
+    #   @rule "if-if-or" y x a b (if a x (if b x y)) --> (if (or a b) x y)
+    #   @rule "if-if-or-not" y x a b (if a x (if b y x)) --> (if (or a (not b)) x y)
+    #   @rule "if-if-and" y x a b (if a (if b x y) y) --> (if (and a b) x y)
+    #   @rule "if-if-and-not" y x a b (if a (if b y x) y) --> (if (and a (not b)) x y)
+    #],
 
 )
 
-
 REWRITE_THEORY = convert(Vector{RewriteRule}, reduce(∪, theories))
-SIMPLIFY_THEORY = convert(Vector{RewriteRule}, reduce(∪, [
-   theories.commutativity,
-   theories.associativity,
-   theories.counting,
-   theories.distributivity,
-   theories.distributivity_fp_safe,
-   theories.cancel_sign_fp_safe,
-   theories.difference_of_squares_canonicalize,
-   theories.id_reduce,
-   theories.id_reduce_fp_safe,
-   theories.id_reduce_fp_safe_nan,
-   theories.nan_transform_fp_safe,
-   theories.squares_reduce,
-   theories.squares_transform,
-   theories.pow_canonicalize,
-   theories.fractions_distribute,
-   theories.fractions_transform,
-]))
+SIMPLIFY_THEORY = convert(
+    Vector{RewriteRule},
+    reduce(
+        ∪,
+        [
+            theories.commutativity,
+            theories.associativity,
+            theories.counting,
+            theories.distributivity,
+            theories.distributivity_fp_safe,
+            theories.cancel_sign_fp_safe,
+            theories.difference_of_squares_canonicalize,
+            theories.id_reduce,
+            theories.id_reduce_fp_safe,
+            theories.id_reduce_fp_safe_nan,
+            theories.nan_transform_fp_safe,
+            theories.squares_reduce,
+            theories.squares_transform,
+            theories.pow_canonicalize,
+            theories.fractions_distribute,
+            theories.fractions_transform,
+        ],
+    ),
+)
