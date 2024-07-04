@@ -53,6 +53,8 @@ function biterror(orig, target, ops::OperatorEnum, X::AbstractMatrix{T}; accum=m
 end
 biterror(reg::Regimes, target::Expression, X::AbstractArray; kw...) =
     biterror(reg, target.tree, target.metadata.operators, X; kw...)
+biterror(expr::Expression, target::Expression, X::AbstractArray; kw...) =
+    biterror(expr.tree, target.tree, expr.metadata.operators, X;kw...)
 biterror(expr::Expression, X::AbstractArray; kw...) =
     biterror(expr.tree, expr.tree, expr.metadata.operators, X;kw...)
 

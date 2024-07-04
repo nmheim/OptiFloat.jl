@@ -33,6 +33,7 @@ end
 
 recursive_rewrite(x, theory, depth=3) = [x]
 function recursive_rewrite(expr::Expr, theory, depth=3)
+    # FIXME: replace with Postwalk
     if iscall(expr) && depth>0
         op = operation(expr)
         argss = Iterators.product([recursive_rewrite(a, theory, depth-1) for a in arguments(expr)]...) |> collect |> vec
@@ -102,21 +103,81 @@ end
 
 
 struct Candidate{E<:Expression,A<:AbstractArray,F<:Function}
-     expr::E
+     cand_expr::E
+     orig_expr::E
      used::Base.RefValue{Bool}
      errors::A
      toexpr::F
 end
-function Candidate(expr, points::AbstractMatrix)
-    errs = biterror(expr,points,accum=identity)
+function Candidate(candidate, original, points::AbstractMatrix)
+    errs = biterror(candidate,original,points,accum=identity)
+    vars = candidate.metadata.variable_names
+    ops = candidate.metadata.operators
     function toexpr(n::Node)::Expr
-        Meta.parse(string_tree(n, expr.metadata.operators, variable_names=expr.metadata.variable_names))
+        Meta.parse(string_tree(n, ops, variable_names=vars))
     end
-    Candidate(expr, Ref(false), errs, toexpr)
+    Candidate(candidate, original, Ref(false), errs, toexpr)
 end
 function Base.show(io::IO, c::Candidate)
     u = c.used[] ? "✓" : "⊚"
-    print(io, "$u E=$(mean(c.errors)) : $(string_tree(c.expr))")
+    print(io, "$u E=$(mean(c.errors)) : $(string_tree(c.cand_expr))")
 end
+
+
+function first_unused(candidates)
+    for c in candidates
+        if !(c.used[])
+            return c
+        end
+    end
+    error("No more unused candidates!")
+end
+
+function optifloat!(candidates, points::Matrix{T}) where T
+    candidate = first_unused(candidates)
+    
+    @info "Computing local error..."
+    local_errs = local_biterrors(candidate.cand_expr, points)
+    
+    (err, worst_expr) = findmax(local_errs)
+    @info "Expression with highest local error" worst_expr err
+    
+    @info "Recursive rewrite to obtain new candidate expressions"
+    expr = candidate.toexpr(worst_expr)
+    # FIXME: replace with postwalk?
+    new_candidates = unique(recursive_rewrite(expr,OptiFloat.REWRITE_THEORY))
+    
+    @info "Simplifying candidates"
+    all_improved = map(new_candidates) do newc
+        simplified = simplify(newc, OptiFloat.SIMPLIFY_THEORY, steps=3)
+    end |> unique
+   
+    @info "Reconstruct with simplified candidates"
+    all_simplified = map(all_improved) do improved
+        rewrite = Postwalk(PassThrough(x -> x==expr ? improved : nothing))
+        e = rewrite(candidate.toexpr(candidate.cand_expr.tree))
+        simplify(e, OptiFloat.SIMPLIFY_THEORY, steps=3)
+    end |> unique
+
+    # TODO: Jaques Carrett knows about unsound rules e.g. to deal with
+    #  :(((4.0c) / (b + sqrt(b ^ 2.0 - 4.0c))) / (2.0c)) division by zero
+    
+    new_cs = Any[]
+    for simpl in all_simplified
+        new_dexpr = parse_expression(simpl; kws...)
+        new_candidate = Candidate(new_dexpr, dexpr, points)
+        if any([any(new_candidate.errors .< c.errors) for c in candidates])
+            push!(new_cs, new_candidate)
+        end
+    end
+
+    append!(candidates, new_cs) |> unique
+    candidate.used[] = true
+    display(candidates)
+
+    @info "TODO: regime inference"
+end
+
+
 
 end # module OptiFloat

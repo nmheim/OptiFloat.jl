@@ -1,6 +1,6 @@
 using OptiFloat
 using OptiFloat: biterror, sample_bitpattern, Regimes, evaluate_exact, evaluate_approx, Regime,
-    lowleft, lowlefteq
+    lowleft, lowlefteq, logsample
 using DynamicExpressions
 using OrderedCollections: OrderedDict
 
@@ -9,15 +9,19 @@ function best_candidate(target, candidates, ops, points, low, high)
     # xs = reduce(hcat, filter(col->low<col[1]<=high, points))
     xs = reduce(hcat, filter(p -> contains(low,p,high), eachcol(points)))
     d  = OrderedDict(e=>biterror(e,target,ops,xs) for e in candidates)
-    @info "best" low high d
     findmin(d)
 end
 
-
+minus_infsplit(s::Vector{T}) where T = -fill(T(Inf), length(s))
+minus_infsplit(::T, index::Int) where T = (T(-Inf), index)
+minus_infsplit(s::Tuple) = minus_infsplit(s...)
+plus_infsplit(s::Vector{T}) where T = fill(T(Inf), length(s))
+plus_infsplit(::T, index::Int) where T = (T(Inf), index)
+plus_infsplit(s::Tuple) = plus_infsplit(s...)
 
 function infer_regimes(
     original::Expression{T}, candidates, splits, points;
-    last_point=fill(T(Inf), size(points,1))
+    last_point=plus_infsplit(splits[1])
 ) where T
 
     function _best_candidate(low,high)
@@ -42,21 +46,21 @@ function infer_regimes(
     end
 
 
-    inf = fill(T(Inf), size(points,1))
-    best_split = map(enumerate(eachcol(splits))) do (i,x)
-        expr = _best_candidate(-inf, x)
-        reg = Regime(expr, -inf, x, 0, i)
+    inf = minus_infsplit(splits[1])
+    best_split = map(enumerate(splits)) do (i,x)
+        expr = _best_candidate(inf, x)
+        reg = Regime(expr, inf, x, 0, i)
         Regimes([reg])
     end
     _biterror.(best_split)
 
-    new_best_split = map(enumerate(eachcol(splits))) do (i,x)
-        options = map(enumerate(eachcol(splits[1:i]))) do (j,y)
-            if y <= x
-                best_split[i]
-            else
+    new_best_split = map(enumerate(splits)) do (i,x)
+        options = map(enumerate(splits[1:i])) do (j,y)
+            if OptiFloat.lowleft(x,y)
                 extra_regime = Regime(_best_candidate(y,x), y, x, j, i)
                 join(best_split[i], extra_regime)
+            else
+                best_split[i]
             end
         end
         _, best_option = lowest_error(options)
@@ -74,6 +78,11 @@ function infer_regimes(
         Regimes(vcat(regimes.regs, [r]))
     end
 
+    for r in full_range_split
+        print(_biterror(r))
+        print(" ")
+        display(r)
+    end
     _, regs = lowest_error(full_range_split)
     return regs
 end
@@ -90,21 +99,59 @@ kws = (;
 )
 dexpr = parse_expression(orig_expr; kws...)
 c_dexpr = parse_expression(candidate; kws...)
+candidates = [dexpr, c_dexpr]
 
 fmax = fill(floatmax(T), 2)
-splits = T[
-    -1000 -10 -1 0 1 10 100 1000
-    -1000 -10 -1 0 1 10 100 1000
-]
-# FIXME: commenting out the additional splits below makes things crash
-splits = T[
-        0   0  0 0 0  0   0    0 #-1000 -10 -1 0 1 10 100 1000
-    -1000 -10 -1 0 1 10 100 1000 #-1000 -10 -1 0 1 10 100 1000
-]
-points = sample_bitpattern(T, -floatmax(T), floatmax(T), 2, 1000)
+#points = sample_bitpattern(T, -floatmax(T), floatmax(T), 2, 1000)
+points = logsample(dexpr, T, 2, 1000)
 points = reduce(hcat, sort(eachcol(points), lt=OptiFloat.lowleft))
 
-biterror(dexpr.tree, c_dexpr.tree, dexpr.metadata.operators, points) |> display
-
-candidates = [dexpr, c_dexpr]
+splits = sort([
+    T[-1e3, -1e3],
+    T[-1e2, -1e2],
+    T[-1e1, -1e1],
+    T[   0,    0],
+    T[ 1e0,  1e0],
+    T[ 1e1,  1e1],
+    T[ 1e2,  1e2],
+    T[ 1e3,  1e3],
+    T[   0, -1e3],
+    T[   0, -1e2],
+    T[   0, -1e1],
+    T[   0,    0],
+    T[   0,  1e0],
+    T[   0,  1e1],
+    T[   0,  1e2],
+    T[   0,  1e3],
+], lt=OptiFloat.lowlefteq)
 regs = infer_regimes(dexpr, candidates, splits, points)
+display(regs)
+println("")
+
+splits = [
+    (T(-1e3), 2),
+    (T(-1e2), 2),
+    (T(-1e1), 2),
+    (T(-1e0), 2),
+    (T( 1e1), 2),
+    (T( 1e2), 2),
+    (T( 1e3), 2),
+]
+regs = infer_regimes(dexpr, candidates, splits, points)
+display(regs)
+println("")
+
+splits = [
+    (T(-1e3), 2),
+    (T(-1e2), 2),
+    (T(-1e1), 2),
+    (T(-1e0), 2),
+    (T( 1e1), 2),
+    (T( 1e2), 2),
+    (T( 1e3), 2),
+]
+regs = infer_regimes(dexpr, candidates, splits, points)
+
+
+# biterror(dexpr.tree, c_dexpr.tree, dexpr.metadata.operators, points) |> display
+

@@ -54,12 +54,12 @@ evaluate_approx(tree::Node, ops::OperatorEnum, xs::AbstractMatrix) =
     map(x -> evaluate_approx(tree, ops, x), eachcol(xs))
 
 
-struct Regime{T,VL<:AbstractVector{T},VH<:AbstractVector{T}}
+struct Regime{T,V<:Union{<:AbstractVector{T},Tuple{T,Int}}, I<:Union{Int,Nothing}}
     expr::Expression{T}
-    low::VL
-    high::VH
+    low::V
+    high::V
     "low index"
-    li::Union{Int,Nothing}
+    li::I
     "high index"
     hi::Union{Int,Nothing}
 end
@@ -72,9 +72,35 @@ end
 Regimes(rs::Tuple{E,A,B}...) where {A,B,E<:Expression} = Regimes([Regime(args...) for args in rs])
 
 lowleft(x::AbstractVector, y::AbstractVector) = all(x .< y)
+function lowleft(x::AbstractVector, y::Tuple{T,Int}) where T
+    (val, index) = y
+    x[index] < val
+end
+function lowleft(y::Tuple{T,Int}, x::AbstractVector) where T
+    (val, index) = y
+    val < x[index]
+end
+function lowleft(x::Tuple{T,Int}, y::Tuple{T,Int}) where T
+    (xval, xindex) = x
+    (yval, yindex) = y
+    if xindex == yindex
+        xval < yval
+    else
+        error("Splits are not on same index.")
+    end
+end
+
 lowlefteq(x::AbstractVector, y::AbstractVector) = all(x .<= y)
-Base.contains(x::AbstractVector, point::AbstractVector, y::AbstractVector) =
-    lowleft(x,point) && lowlefteq(point,y)
+function lowlefteq(x::AbstractVector, y::Tuple{T,Int}) where T
+    (val, index) = y
+    x[index] <= val
+end
+function lowleft(y::Tuple{T,Int}, x::AbstractVector) where T
+    (val, index) = y
+    val <= x[index]
+end
+
+Base.contains(x, point::AbstractVector, y) = lowleft(x,point) && lowlefteq(point,y)
 Base.contains(r::Regime, x::AbstractVector) = contains(r.low, x, r.high)
 Base.contains(rs::Regimes, x::AbstractVector) = any(contains(r,x) for r in rs.regs)
 

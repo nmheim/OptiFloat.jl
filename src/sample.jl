@@ -1,3 +1,32 @@
+function logsample(expr::Expression, args...; eval_exact=true)
+    tree = expr.tree
+    ops = expr.metadata.operators
+    if eval_exact
+        logsample(x -> evaluate_exact(tree, ops, x), args...)
+    else
+        logsample(x -> evaluate_approx(tree, ops, x), args...)
+    end
+end
+function logsample(testfn::Function, T::Type, inputsize::Int, batchsize::Int)
+    samples = Vector{T}[]
+    while length(samples) < batchsize
+        x = rand([-1,1], inputsize) .* exp.(rand(T, inputsize) .* log(floatmax(T)))
+        try
+            #if isfinite(evaluate_exact(expr, ops, x))
+            if isfinite(testfn(x))
+                push!(samples, x)
+            end
+        catch e
+            if e isa DomainError
+                continue
+            else
+                rethrow(e)
+            end
+        end
+    end
+    reduce(hcat, samples)
+end
+
 sample_bitpattern(expr::Expression, args...) = sample_bitpattern(expr.tree, expr.metadata.operators, args...)
 function sample_bitpattern(expr::Node, ops::OperatorEnum, T::Type, inputsize::Int, batchsize::Int)
     samples = []
