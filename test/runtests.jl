@@ -107,4 +107,26 @@ end
         Node{T}(; val=1.0) => 0, a + 1 => 0, (a + 1) - a => T(log2(ulpdistance(T(0), T(1)))), a => 0
     )
     @test target == d
+
+    # FIXME: Supposition.jl
+    # check that error of any expression is >= 0
 end
+
+#@testitem "logsample" begin
+    using OptiFloat: sample_bitpattern, logsample, Candidate, local_biterrors
+    using DynamicExpressions: Node, parse_expression
+    T = Float16
+    orig_expr = :((-b - sqrt(b^2 - 4 * c)) / (2 * c))
+    kws = (;
+        binary_operators=[-, ^, /, *, +],
+        unary_operators=[-, sqrt],
+        node_type=Node{T},
+        variable_names=["b", "c"],
+    )
+    dexpr = parse_expression(orig_expr; kws...)
+    points = sample_bitpattern(dexpr, T, 2, 8000)
+    points = logsample(dexpr, T, 2, 8000, eval_exact=false)
+    local_biterrors(dexpr, points)
+    #c = Candidate(dexpr, dexpr, points)
+    # isfinite(sum(c.errors))
+#end
