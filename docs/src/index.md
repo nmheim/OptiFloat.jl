@@ -58,6 +58,8 @@ OptiFloat.jl implements the Herbie approach to floating point expression optimiz
 5. Keep track of all alternatives to `expr` (and their errors) in a table. Pick the next unused expression from that table and start from step 1. Finish after a number of steps or when all alternatives have been tested.
 6. Finally, infer good _regimes_: There might not be one expression that performs well for all inputs. OptiFloat.jl (like Herbie) infers good intervals for the different alternative expression and produces one compound expression.
 
+The steps above are roughly what `OptiFloat.optifloat!` is doing.
+
 
 ### Local biterror
 
@@ -95,9 +97,56 @@ dexpr = parse_expression(orig_expr;
     variable_names=["x"],
 )
 points = logsample(dexpr, T, arity, 8000)
-local_biterrors(dexpr, points)
+local_errs = local_biterrors(dexpr, points)
 ```
 
+### Recursive rewrites
+
+From the local biterror breakdown above, OptiFloat picks the expression with the
+highest error, in this case the top level `-` in `sqrt(x1 + 1.0) - sqrt(x1)` and
+tries to apply a set of rewrites defined in `OptiFloat.REWRITE_THEORY`. OptiFloat
+also maintains a list of candidates to track which expression have been tried
+already.
+
+```@repl sqrtexample
+using OptiFloat: REWRITE_THEORY, Candidate, recursive_rewrite
+
+candidate = Candidate(dexpr, dexpr, points)
+candidates = [candidate]
+(err, worst_expr) = findmax(local_errs)
+expr = candidate.toexpr(worst_expr)
+new_candidates = unique(recursive_rewrite(expr, REWRITE_THEORY))#[1:10]
+```
+
+### Simplify via Metatheory.jl
+
+```julia
+all_improved = map(new_candidates) do newc
+    simplified = simplify(newc, OptiFloat.SIMPLIFY_THEORY; steps=3)
+end |> unique
+```
+
+### Generate new candidates
+
+```julia
+all_simplified =
+    map(all_improved) do improved
+        rewrite = Postwalk(PassThrough(x -> x == expr ? improved : nothing))
+        e = rewrite(candidate.toexpr(candidate.cand_expr.tree))
+        simplify(e, OptiFloat.SIMPLIFY_THEORY; steps=3)
+    end |> unique
+```
+
+### Infer regimes
+
+In this case very simple, because `1/(sqrt(x+1)+sqrt(x))` is better everywhere. See `scripts/infer-regimes.jl` for more interesting example.
+
+
+## TODOs
+
+- [ ] Use `DynamicExpressions.Expression` throughout the code base so that we don't have to switch to Julia's `Expr` for the EGraph rewrites and back again.
+- [ ] Include all of herbie's rewrite rules
+- [ ] Is there a way to do the error computation in the EGraph?
 
 ## Documentation
 
