@@ -2,7 +2,7 @@
 
 julia_version = "1.10.4"
 manifest_format = "2.0"
-project_hash = "f22a81627267670a20be2d72a1a56f0ca95c07ab"
+project_hash = "49e4c2547e27eb5cb43ef3f0b7c552c294c498fc"
 
 [[deps.ANSIColoredPrinters]]
 git-tree-sha1 = "574baf8110975760d391c710b6341da1afa48d8c"
@@ -123,7 +123,9 @@ version = "1.6.0"
 
 [[deps.DynamicExpressions]]
 deps = ["ChainRulesCore", "Compat", "DispatchDoctor", "Interfaces", "MacroTools", "PackageExtensionCompat", "PrecompileTools", "Random", "Reexport", "TOML", "TestItems"]
-git-tree-sha1 = "fae82d275115e0618731558e409facd4acc21abb"
+git-tree-sha1 = "5baaea122bae73d76e89a073da2eb94d0709ba34"
+repo-rev = "nh/early-exit"
+repo-url = "https://github.com/nmheim/DynamicExpressions.jl.git"
 uuid = "a40a106e-89c9-4ca8-8020-a735e8728b6b"
 version = "0.18.5"
 

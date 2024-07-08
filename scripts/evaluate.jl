@@ -14,7 +14,7 @@ let
     using CairoMakie
     f = Figure()
     kws = (;)
-    a1 = Axis(f[1, 1]; xscale=log10)
+    a1 = Axis(f[1, 1]; xscale=log10, title="$e1")
     scatter!(
         a1, xs, evaluate(e1, ops, reshape(xs, 1, :)); color=1, colorrange=(1, 10), colormap=:tab10
     )
@@ -27,9 +27,9 @@ let
         colormap=:tab10,
     )
 
-    a2 = Axis(f[1, 2]; xscale=log10)
+    a2 = Axis(f[1, 2]; xscale=log10, title="$e2", legend=true)
     scatter!(
-        a2, xs, evaluate(e2, ops, reshape(xs, 1, :)); color=1, colorrange=(1, 10), colormap=:tab10
+        a2, xs, evaluate(e2, ops, reshape(xs, 1, :)); color=1, colorrange=(1, 10), colormap=:tab10, label="asdf"
     )
     lines!(
         a2,

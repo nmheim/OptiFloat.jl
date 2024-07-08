@@ -16,6 +16,11 @@ function ulpdistance(a::F, b::F) where {F<:AbstractFloat}
     return abs(a_int - b_int)
 end
 
+function biterror(x::T, y::T) where T
+    ulp = ulpdistance(x,y)
+    T(ulp == 0 ? 0 : log2(ulp))
+end
+
 function biterror(orig, target, ops::OperatorEnum, x::AbstractVector{T}) where {T}
     y_exact = evaluate_exact(target, ops, reshape(x, :, 1)) |> only
     y_approx = try
@@ -28,8 +33,7 @@ function biterror(orig, target, ops::OperatorEnum, x::AbstractVector{T}) where {
         end
     end
 
-    ulp = ulpdistance(y_approx, convert(T, y_exact))
-    T(ulp == 0 ? 0 : log2(ulp))
+    biterror(y_approx, convert(T, y_exact))
 end
 
 function biterror(orig, target, ops::OperatorEnum, X::AbstractMatrix{T}; accum=mean) where {T}
@@ -123,8 +127,7 @@ function local_biterror(
     exact_result = evaluate_exact.(localf, exact_args...)
     bits = setprecision(prec) do
         map(zip(approx_result, exact_result)) do (ap, ex)
-            ulp = ulpdistance(ap, convert(T, ex))
-            ulp == 0 ? T(0) : log2(ulp)
+            biterror(ap, convert(T,ex))
         end
     end
     accum(bits)
