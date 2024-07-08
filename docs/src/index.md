@@ -114,7 +114,7 @@ using OptiFloat: REWRITE_THEORY, Candidate, recursive_rewrite
 candidate = Candidate(dexpr, dexpr, points)
 candidates = [candidate]
 (err, worst_expr) = findmax(local_errs)
-expr = candidate.toexpr(worst_expr)
+expr = candidate.toexpr(worst_expr)  # we should avoid this by using TermInterface.jl on Expression
 new_candidates = unique(recursive_rewrite(expr, REWRITE_THEORY))#[1:10]
 ```
 
