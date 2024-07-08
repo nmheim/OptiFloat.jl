@@ -1,3 +1,1 @@
-# OptiFloat.jl
-
-explain similarities / differences to herbie
+docs/src/index.md
