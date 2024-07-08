@@ -2,7 +2,7 @@
 
 julia_version = "1.10.4"
 manifest_format = "2.0"
-project_hash = "f22a81627267670a20be2d72a1a56f0ca95c07ab"
+project_hash = "fb2b5fa5b2ca9fdf4cbf148ddd15e6cdfb956950"
 
 [[deps.ANSIColoredPrinters]]
 git-tree-sha1 = "574baf8110975760d391c710b6341da1afa48d8c"
@@ -20,12 +20,6 @@ version = "1.1.1"
 
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
-
-[[deps.AutoHashEquals]]
-deps = ["Pkg"]
-git-tree-sha1 = "daaeb6f7f77b88c072a83a2451801818acb5c63b"
-uuid = "15f4f7f2-30c1-5605-9d31-71845cf9641f"
-version = "2.1.0"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
@@ -77,6 +71,12 @@ deps = ["Serialization", "Sockets"]
 git-tree-sha1 = "ea32b83ca4fefa1768dc84e504cc0a94fb1ab8d1"
 uuid = "f0e56b4a-5159-44fe-b623-3e5288b988bb"
 version = "2.4.2"
+
+[[deps.DataStructures]]
+deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
+git-tree-sha1 = "1d0a14036acb104d9e89698bd408f63ab58cdc82"
+uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+version = "0.18.20"
 
 [[deps.Dates]]
 deps = ["Printf"]
@@ -300,6 +300,11 @@ git-tree-sha1 = "465a70f0fc7d443a00dcdc3267a497397b8a3899"
 uuid = "d0879d2d-cac2-40c8-9cee-1863dc0c7391"
 version = "0.1.2"
 
+[[deps.MatchCore]]
+git-tree-sha1 = "90af9fe333f8c9851f952dfa7f335185c94567c0"
+uuid = "5dd3f0b1-72a9-48ad-ae6e-79f673da005f"
+version = "0.1.1"
+
 [[deps.MbedTLS]]
 deps = ["Dates", "MbedTLS_jll", "MozillaCACerts_jll", "NetworkOptions", "Random", "Sockets"]
 git-tree-sha1 = "c067a280ddc25f196b5e7df3877c6b226d390aaf"
@@ -312,18 +317,10 @@ uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
 version = "2.28.2+1"
 
 [[deps.Metatheory]]
-deps = ["AutoHashEquals", "DocStringExtensions", "Reexport", "TermInterface", "TimerOutputs"]
-git-tree-sha1 = "c84355ce0aa671ef8bbd0199b9a1aa605b7af6ba"
-repo-rev = "ale/3.0"
-repo-url = "https://github.com/JuliaSymbolics/Metatheory.jl.git"
+deps = ["DataStructures", "MatchCore", "RuntimeGeneratedFunctions"]
+git-tree-sha1 = "751439b6cad04d5b739a07a988f75e16539b7e9f"
 uuid = "e9d8d322-4543-424a-9be4-0cc815abe26c"
-version = "3.0.0"
-
-    [deps.Metatheory.extensions]
-    Plotting = ["GraphViz"]
-
-    [deps.Metatheory.weakdeps]
-    GraphViz = "f526b714-d49f-11e8-06ff-31ed36ee7ee0"
+version = "0.1.1"
 
 [[deps.Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
@@ -435,6 +432,12 @@ git-tree-sha1 = "40b9edad2e5287e05bd413a38f61a8ff55b9557b"
 uuid = "5eaf0fd0-dfba-4ccb-bf02-d820a40db705"
 version = "0.2.1"
 
+[[deps.RuntimeGeneratedFunctions]]
+deps = ["ExprTools", "SHA", "Serialization"]
+git-tree-sha1 = "04c968137612c4a5629fa531334bb81ad5680f00"
+uuid = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
+version = "0.5.13"
+
 [[deps.SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 version = "0.7.0"
@@ -488,12 +491,6 @@ uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 git-tree-sha1 = "8621ba2637b49748e2dc43ba3d84340be2938022"
 uuid = "1c621080-faea-4a02-84b6-bbd5e436b8fe"
 version = "0.1.1"
-
-[[deps.TimerOutputs]]
-deps = ["ExprTools", "Printf"]
-git-tree-sha1 = "5a13ae8a41237cff5ecf34f73eb1b8f42fff6531"
-uuid = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
-version = "0.5.24"
 
 [[deps.TranscodingStreams]]
 git-tree-sha1 = "60df3f8126263c0d6b357b9a1017bb94f53e3582"
