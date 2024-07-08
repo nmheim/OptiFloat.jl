@@ -121,10 +121,13 @@ function local_biterror(
 
     exact_args = [BigFloat.(x, prec) for x in exact_args]
     exact_result = evaluate_exact.(localf, exact_args...)
-    ulps = setprecision(prec) do
-        accum(ulpdistance.(approx_result, convert(Vector{T}, exact_result)))
+    bits = setprecision(prec) do
+        map(zip(approx_result, exact_result)) do (ap, ex)
+            ulp = ulpdistance(ap, convert(T, ex))
+            ulp == 0 ? T(0) : log2(ulp)
+        end
     end
-    T(ulps ≈ 0 ? 0 : log2(ulps))
+    accum(bits)
 end
 
 function local_biterrors(expr::Expression, x::AbstractArray)

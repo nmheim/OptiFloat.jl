@@ -5,6 +5,8 @@ using DynamicExpressions
 using TermInterface
 using IntervalArithmetic: Interval, interval, bounds, isthin, mid, isbounded
 using Statistics: mean
+using Metatheory: EGraph, SaturationParams, saturate!, extract!
+using Metatheory.Rewriters: PassThrough, Postwalk
 
 # FIXME: type piracy
 Base.isfinite(x::Interval) = isbounded(x)
@@ -123,7 +125,9 @@ function Candidate(candidate, original, points::AbstractMatrix)
 end
 function Base.show(io::IO, c::Candidate)
     u = c.used[] ? "✓" : "⊚"
-    print(io, "$u E=$(mean(c.errors)) : $(string_tree(c.cand_expr))")
+    # converting to bigfloat because mean might overflow (e.g. for Float16)
+    e = convert(eltype(c.errors), mean(convert(Vector{BigFloat}, c.errors)))
+    print(io, "$u E=$(e) : $(string_tree(c.cand_expr))")
 end
 
 function first_unused(candidates)
@@ -135,7 +139,7 @@ function first_unused(candidates)
     error("No more unused candidates!")
 end
 
-function optifloat!(candidates, points::Matrix{T}) where {T}
+function optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T}
     candidate = first_unused(candidates)
 
     @info "Computing local error..."
@@ -167,8 +171,15 @@ function optifloat!(candidates, points::Matrix{T}) where {T}
 
     new_cs = Any[]
     for simpl in all_simplified
-        new_dexpr = parse_expression(simpl; kws...)
-        new_candidate = Candidate(new_dexpr, dexpr, points)
+        expr = candidate.cand_expr
+        new_dexpr = parse_expression(
+            simpl;
+            binary_operators=expr.metadata.operators.binops |> collect,
+            unary_operators=expr.metadata.operators.unaops |> collect,
+            variable_names=expr.metadata.variable_names,
+            node_type=Node{T},
+        )
+        new_candidate = Candidate(new_dexpr, candidate.orig_expr, points)
         if any([any(new_candidate.errors .< c.errors) for c in candidates])
             push!(new_cs, new_candidate)
         end

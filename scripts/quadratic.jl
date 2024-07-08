@@ -14,10 +14,10 @@ using OptiFloat:
     recursive_rewrite,
     simplify,
     Candidate,
-    local_biterrors
+    local_biterrors,
+    optifloat!
 
-# FIXME: figure out why we can get Inf errors
-# FIXME: figure out why we can get DomainError in error with logsample(..., eval_exact=false)
+# FIXME: sort vector of candidates by mean error
 
 T = Float16
 orig_expr = :((-b - sqrt(b^2 - 4 * c)) / (2 * c))
@@ -28,7 +28,7 @@ kws = (;
     variable_names=["b", "c"],
 )
 dexpr = parse_expression(orig_expr; kws...)
-points = sample_bitpattern(dexpr, T, 2, 8000)
-# points = logsample(dexpr, T, 2, 8000)
+#points = sample_bitpattern(dexpr, T, 2, 8000)
+points = logsample(dexpr, T, 2, 8000, eval_exact=false)
 candidates = [Candidate(dexpr, dexpr, points)]
 optifloat!(candidates, points)
