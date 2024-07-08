@@ -37,15 +37,11 @@ jobs:
       - name: Setup Julia
         uses: julia-actions/setup-julia@v2
       - name: Pull Julia cache
-        uses: julia-actions/cache@v1
-      - name: Install documentation dependencies
-        run: julia --project=docs -e 'using Pkg; pkg"dev ."; Pkg.instantiate(); Pkg.precompile(); Pkg.status()'
-      #- name: Creating new mds from src
-      - name: Build and deploy docs
-        uses: julia-actions/julia-docdeploy@v1
+      - uses: julia-actions/cache@v1
+      - name: Install dependencies
+        run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+      - name: Build and deploy
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
-          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # For authentication with SSH deploy key
-          GKSwstype: "100" # for Plots.jl plots (if you have them)
-          JULIA_DEBUG: "Documenter"
-          DATADEPS_ALWAYS_ACCEPT: true
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token
+          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # If authenticating with SSH deploy key
+        run: julia --project=docs/ docs/make.jl
