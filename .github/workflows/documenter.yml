@@ -21,8 +21,11 @@ jobs:
           version: '1.10'
       - name: Install dependencies
         run: julia docs/setup.jl
-      - name: Build and deploy
+      - name: Build and deploy docs
+        uses: julia-actions/julia-docdeploy@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token
-          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # If authenticating with SSH deploy key
-        run: julia --project=docs/ docs/make.jl
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
+          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # For authentication with SSH deploy key
+          GKSwstype: "100" # for Plots.jl plots (if you have them)
+          JULIA_DEBUG: "Documenter"
+          DATADEPS_ALWAYS_ACCEPT: true
