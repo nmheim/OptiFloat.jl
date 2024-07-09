@@ -1,16 +1,5 @@
-using DynamicExpressions: Node, parse_expression
+using DynamicExpressions: Node, parse_expression, logsample
 using OptiFloat: Candidate, all_subexpressions, ulpdistance, biterror, local_biterror, local_biterrors, logsample
-
-@testset "all_subexpressions" begin
-    expr = :(x + 1 - x)
-    dexpr = parse_expression(:(x + 1 - x); binary_operators=[+, -], variable_names=["x"])
-    @test length(all_subexpressions(expr)) == 4
-    @test length(all_subexpressions(dexpr.tree)) == 4
-    @test length(all_subexpressions(dexpr)) == 4
-    for (tr, ex) in zip(all_subexpressions(dexpr.tree), all_subexpressions(dexpr))
-        @test ex.tree == tr
-    end
-end
 
 @testset "Biterror" begin
     @test ulpdistance(Float16(0), Float16(1)) == 15360
@@ -26,9 +15,9 @@ end
     @test round.(Int, biterror(dexpr, reshape([x], 1, 1); accum=identity)) == [14]
 end
 
-@testset "Local biterror dynamic expression" begin
+#@testset "Local biterror dynamic expression" begin
     T = Float16
-    kws = (; binary_operators=[+, -], variable_names=["x1"], node_type=Node{T})
+    kws = (; binary_operators=[+, -], unary_operators=[sqrt], variable_names=["x1"], node_type=Node{T})
     dexpr = parse_expression(:(x1 + 1 - x1); kws...)
 
     x = reshape(T[5e3 for _ in 1:100], 1, 100)
@@ -44,9 +33,15 @@ end
     )
     @test target == d
 
+
+
+    dexpr = parse_expression(:(sqrt(x1 + 1) - sqrt(x1)); kws...)
+    points = logsample(dexpr, T, arity, 8000)
+    local_biterrors(dexpr, points)
+
     # FIXME: Supposition.jl
     # check that error of any expression is >= 0
-end
+#end
 
 @testset "logsample" begin
     T = Float16

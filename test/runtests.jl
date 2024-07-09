@@ -2,6 +2,10 @@ using Test
 using TestItems
 using TestItemRunner
 
+@testitem "terminferface.jl" begin
+    include("terminferface.jl")
+end
+
 @testitem "sample.jl" begin
     include("sample.jl")
 end
