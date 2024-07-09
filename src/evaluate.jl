@@ -74,9 +74,10 @@ struct Regime{T,V<:Union{<:AbstractVector{T},Tuple{T,Int}},I<:Union{Int,Nothing}
     "low index"
     li::I
     "high index"
-    hi::Union{Int,Nothing}
+    hi::I
 end
-Regime(expr, low, high) = Regime(expr, low, high, nothing, nothing)
+Regime(expr, low::Vector, high::Vector) = Regime(expr, low, high, nothing, nothing)
+Regime(expr, low::Number, high::Number) = Regime(expr, [low], [high], nothing, nothing)
 
 struct Regimes{A<:AbstractVector{<:Regime}}
     regs::A

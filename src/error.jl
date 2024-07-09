@@ -72,13 +72,17 @@ end
 
 function all_subexpressions(expr::Union{Expr,Node})
     subs = if iscall(expr)
-        vcat([expr], reduce(vcat, all_subexpressions.(children(expr))))
+        vcat([expr], reduce(vcat, all_subexpressions.(arguments(expr))))
     else
         [expr]
     end
     unique(subs)
 end
 all_subexpressions(x) = [x]
+function all_subexpressions(expr::Expression)
+    trees = all_subexpressions(expr.tree)
+    [Expression(t,expr.metadata) for t in trees]
+end
 
 maximum_precision(::Int) = 0
 maximum_precision(x::AbstractFloat) = precision(x)
@@ -98,7 +102,7 @@ function local_biterror(
         return T(0)
     end
     # each BigFloat from evaluate_exact might have different precision
-    exact_args = [evaluate_exact(a, ops, X) for a in children(tree)]
+    exact_args = [evaluate_exact(a, ops, X) for a in arguments(tree)]
     prec = maximum_precision(exact_args)
 
     localf = tree.degree == 2 ? ops.binops[tree.op] : ops.unaops[tree.op]

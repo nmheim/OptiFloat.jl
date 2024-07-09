@@ -8,11 +8,24 @@ function logsample(expr::Expression, args...; eval_exact=true)
     end
 end
 function logsample(testfn::Function, T::Type, inputsize::Int, batchsize::Int)
+    samplefn(T, n) = rand([-1, 1], n) .* exp.(rand(T, n) .* log(floatmax(T)))
+    sample_finite(samplefn, testfn, T, inputsize, batchsize)
+end
+logsample(T::Type, inputsize::Int, batchsize::Int) = logsample(first, T, inputsize, batchsize)
+
+"""
+Generate samples from `samplefn` that yield finite results when called with `testfn`:
+
+```julia
+x = samplefn(T, inputsize)
+y = testfn(x)  <-- add to samples if isfinite(y)
+```
+"""
+function sample_finite(samplefn::Function, testfn::Function, T::Type, inputsize::Int, batchsize::Int)
     samples = Vector{T}[]
     while length(samples) < batchsize
-        x = rand([-1, 1], inputsize) .* exp.(rand(T, inputsize) .* log(floatmax(T)))
+        x = samplefn(T, inputsize)
         try
-            #if isfinite(evaluate_exact(expr, ops, x))
             if isfinite(testfn(x))
                 push!(samples, x)
             end
@@ -31,23 +44,8 @@ function sample_bitpattern(expr::Expression, args...)
     sample_bitpattern(expr.tree, expr.metadata.operators, args...)
 end
 function sample_bitpattern(expr::Node, ops::OperatorEnum, T::Type, inputsize::Int, batchsize::Int)
-    samples = []
-    while length(samples) < batchsize
-        X = sample_bitpattern(T, inputsize, 1)
-        try
-            y = evaluate_exact(expr, ops, X) |> only
-            if isfinite(y)
-                push!(samples, X)
-            end
-        catch e
-            if e isa DomainError
-                continue
-            else
-                rethrow(e)
-            end
-        end
-    end
-    reduce(hcat, samples)
+    testfn(x) = evaluate_exact(expr, ops, x)
+    sample_finite(sample_bitpattern, testfn, T, inputsize, batchsize)
 end
 function sample_bitpattern(T::Type, shape::Int...)
     reshape(T[sample_bitpattern(T) for _ in 1:prod(shape)], shape...)
