@@ -2,7 +2,7 @@
 
 julia_version = "1.10.4"
 manifest_format = "2.0"
-project_hash = "cdb09d69e5abf170651c984e4d19be9d62ed6778"
+project_hash = "04cda60ff44c4104970faa6c1ef2c071759d29dd"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -57,9 +57,9 @@ uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
 
 [[deps.DispatchDoctor]]
 deps = ["MacroTools", "Preferences"]
-git-tree-sha1 = "30926dc817e39d03d1d6c7b3315c6d4affc0aec2"
+git-tree-sha1 = "a91aea1730626655e759e036a491b87b78de92e9"
 uuid = "8d63f2c5-f18a-4cf2-ba9d-b3f60fc568c8"
-version = "0.4.8"
+version = "0.4.9"
 weakdeps = ["ChainRulesCore"]
 
     [deps.DispatchDoctor.extensions]
@@ -78,7 +78,9 @@ version = "1.6.0"
 
 [[deps.DynamicExpressions]]
 deps = ["ChainRulesCore", "Compat", "DispatchDoctor", "Interfaces", "MacroTools", "PackageExtensionCompat", "PrecompileTools", "Random", "Reexport", "TOML", "TestItems"]
-path = "../DynamicExpressions"
+git-tree-sha1 = "5baaea122bae73d76e89a073da2eb94d0709ba34"
+repo-rev = "nh/early-exit"
+repo-url = "https://github.com/nmheim/DynamicExpressions.jl.git"
 uuid = "a40a106e-89c9-4ca8-8020-a735e8728b6b"
 version = "0.18.5"
 
