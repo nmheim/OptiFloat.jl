@@ -3,22 +3,18 @@ using Documenter, DocumenterVitepress
 using OptiFloat
 
 makedocs(;
-    modules=[OptiFloat],
-    authors="Niklas Heim",
-    repo="https://github.com/nmheim/OptiFloat.jl",
     sitename="OptiFloat.jl",
-    format=DocumenterVitepress.MarkdownVitepress(
-        repo = "https://github.com/nmheim/OptiFloat.jl",
-        devurl = "dev",
-        deploy_url = "nmheim.github.io/OptiFloat.jl",
+    authors="Niklas Heim",
+    modules=[OptiFloat],
+    warnonly=true,
+    repo="https://github.com/nmheim/OptiFloat.jl",
+    format=DocumenterVitepress.MarkdownVitepress(;
+        repo="https://github.com/nmheim/OptiFloat.jl",
+        devurl="dev",
+        deploy_url="nmheim.github.io/OptiFloat.jl",
     ),
-    pages=[
-        "Home" => "index.md",
-    ],
-    warnonly = true,
+    build="build",
+    pages=["Home" => "index.md"],
 )
 
-deploydocs(;
-    repo="github.com/nmheim/OptiFloat.jl",
-    push_preview=true,
-)
+deploydocs(; repo="github.com/nmheim/OptiFloat.jl", target="build", push_preview=true)
