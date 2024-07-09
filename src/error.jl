@@ -72,7 +72,7 @@ end
 
 function all_subexpressions(expr::Union{Expr,Node})
     subs = if iscall(expr)
-        vcat([expr], reduce(vcat, all_subexpressions.(arguments(expr))))
+        vcat([expr], reduce(vcat, all_subexpressions.(children(expr))))
     else
         [expr]
     end
@@ -87,23 +87,6 @@ maximum_precision(fs::Vector) = maximum(maximum_precision.(fs))
 convert_args(T::Type{<:AbstractFloat}, arg::Number) = convert(T, arg)
 convert_args(T::Type{<:AbstractFloat}, args::Vector) = convert_args.(T, args)
 
-function TermInterface.arguments(e::Node)
-    if e.constant
-        #FIXME: should not end up here
-        []
-    end
-
-    if e.degree == 0
-        [e]
-    elseif e.degree == 1
-        [e.l]
-    else
-        [e.l, e.r]
-    end
-end
-TermInterface.operation(e::Node) = e.op
-TermInterface.iscall(e::Node) = e.degree > 0
-
 function local_biterror(expr::Expression, x::AbstractArray)
     local_biterror(expr.tree, expr.metadata.operators, x)
 end
@@ -115,7 +98,7 @@ function local_biterror(
         return T(0)
     end
     # each BigFloat from evaluate_exact might have different precision
-    exact_args = [evaluate_exact(a, ops, X) for a in arguments(tree)]
+    exact_args = [evaluate_exact(a, ops, X) for a in children(tree)]
     prec = maximum_precision(exact_args)
 
     localf = tree.degree == 2 ? ops.binops[tree.op] : ops.unaops[tree.op]

@@ -1,6 +1,5 @@
 # OptiFloat.jl
 
-
 ::: tip TL;DR
 
 OptiFloat.jl rewrites floating point expressions to more accurate alternatives.
@@ -108,33 +107,42 @@ tries to apply a set of rewrites defined in `OptiFloat.REWRITE_THEORY`. OptiFloa
 also maintains a list of candidates to track which expression have been tried
 already.
 
-```@repl sqrtexample
+```@example sqrtexample
 using OptiFloat: REWRITE_THEORY, Candidate, recursive_rewrite
 
 candidate = Candidate(dexpr, dexpr, points)
 candidates = [candidate]
 (err, worst_expr) = findmax(local_errs)
-expr = candidate.toexpr(worst_expr)  # we should avoid this by using TermInterface.jl on Expression
-new_candidates = unique(recursive_rewrite(expr, REWRITE_THEORY))#[1:10]
+# we should avoid this conversion by using TermInterface.jl on Expression
+expr = candidate.toexpr(worst_expr)
+# picking only first 3 rewrites for demo
+new_candidates = unique(recursive_rewrite(expr, REWRITE_THEORY))[1:3]
 ```
 
 ### Simplify via Metatheory.jl
 
 ```julia
-all_improved = map(new_candidates) do newc
-    simplified = simplify(newc, OptiFloat.SIMPLIFY_THEORY; steps=3)
-end |> unique
+using OptiFloat: SIMPLIFY_THEORY, simplify
+
+all_improved = unique(map(new_candidates) do newc
+    display(newc)
+    simplified = simplify(newc, SIMPLIFY_THEORY; steps=1)
+end)
+
+2-element Vector{Expr}:
+ :(sqrt(x + 1) - sqrt(x))
+ :(1 / (sqrt(x + 1.0) + sqrt(x)))
 ```
 
-### Generate new candidates
+### Update list of candidates
 
 ```julia
-all_simplified =
-    map(all_improved) do improved
-        rewrite = Postwalk(PassThrough(x -> x == expr ? improved : nothing))
-        e = rewrite(candidate.toexpr(candidate.cand_expr.tree))
-        simplify(e, OptiFloat.SIMPLIFY_THEORY; steps=3)
-    end |> unique
+for simpl in all_simplified
+    new_candidate = Candidate(parse_expression(simpl), candidate.orig_expr, points)
+    if any([any(new_candidate.errors .< c.errors) for c in candidates])
+        push!(candidates, new_candidate)
+    end
+end
 ```
 
 ### Infer regimes

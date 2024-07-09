@@ -1,17 +1,22 @@
 using DynamicExpressions
 using OptiFloat
 
-e = :((-b - sqrt(b - 4c)) / (2c))
+
+using Metatheory
+
+e = :(x + 1 - x)
+e = :(x * x + x - 1)
+#e = :((1 + x * x * x) * 2 - 2)
 
 ex = parse_expression(
     e;
-    variable_names=["c", "b"],
-    binary_operators=[-, /, *],
-    unary_operators=[-, sqrt],
+    variable_names=["x"],
+    binary_operators=[-, +, *],
     node_type=Node{Float16},
 )
 
-e2 = parse_expression(e, Node{Float16})
 
-candidate = :(2 / (b + sqrt((b^2.0) - (4.0 * c))))
-e3 = parse_expression(candidate, Node{Float16})
+g = EGraph(ex.tree)
+g = EGraph(e)
+saturate!(g, OptiFloat.SIMPLIFY_THEORY)
+extract!(g, astsize)

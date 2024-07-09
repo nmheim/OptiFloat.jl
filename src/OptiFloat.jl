@@ -11,6 +11,7 @@ using Metatheory.Rewriters: PassThrough, Postwalk
 # FIXME: type piracy
 Base.isfinite(x::Interval) = isbounded(x)
 
+include("terminterface.jl")
 include("sample.jl")
 include("evaluate.jl")
 include("error.jl")
