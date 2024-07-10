@@ -1,5 +1,6 @@
 using TermInterface
-using DynamicExpressions: Node, parse_expression
+using Metatheory
+using DynamicExpressions: Node, OperatorEnum, parse_expression
 using OptiFloat: all_subexpressions
 
 @testset "all_subexpressions" begin
@@ -15,5 +16,13 @@ using OptiFloat: all_subexpressions
     end
 end
 
+ @testset "Rules" begin
+    x1 = Node{Float64}(feature=1)
+    ops = OperatorEnum(binary_operators=(+,))
 
- 
+    rule = @rule x x --> x + 1
+    @test rule(x1) == x1+1
+
+    rule = @rule x x+1 --> x+2
+    @test rule(x1+1) == x1+2
+ end

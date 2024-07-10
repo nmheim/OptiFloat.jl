@@ -17,40 +17,27 @@ include("evaluate.jl")
 include("error.jl")
 include("rules.jl")
 
-rewrite_once(x, theory) = [x]
-function rewrite_once(expr::Expr, theory)
-    # FIXME: replace with looped PassThrough
-    rws = [expr]
-    for rule in theory
-        rw = try
-            rule(expr)
-        catch e
-            e isa BoundsError ? nothing : rethrow(e)
-        end
-        if !isnothing(rw)
-            push!(rws, rw)
-        end
-    end
-    rws
-end
+#rewrite_once(expr, theory) = unique(vcat([expr], map(rule -> PassThrough(rule)(expr), theory)))
+rewrite_once(expr, theory) = vcat([expr], map(rule -> PassThrough(rule)(expr), theory))
 
-recursive_rewrite(x, theory, depth=3) = [x]
-function recursive_rewrite(expr::Expr, theory, depth=3)
-    #  FIXME: replace with Postwalk
+function recursive_rewrite(expr::E, theory, depth=3) where E
     if iscall(expr) && depth > 0
         op = operation(expr)
-        argss =
-            Iterators.product(
-                [recursive_rewrite(a, theory, depth - 1) for a in arguments(expr)]...
-            ) |>
-            collect |>
-            vec
-        rwo = [rewrite_once(Expr(:call, op, args...), theory) for args in argss]
-        rws = reduce(vcat, rwo)
-        rws
+        # rewrite all arguments to op
+        argss = [recursive_rewrite(a, theory, depth - 1) for a in arguments(expr)]
+        # all combinations of rewritten arguments
+        argss = Iterators.product(argss...)
+        # rewrite op itself
+        rwo = [rewrite_once(maketerm(E, :call, (op, args...), nothing), theory) for args in argss]
+        reduce(vcat, rwo)
     else
         [expr]
     end
+end
+recursive_rewrite(x::Union{Symbol,Number}, theory, depth=3) = [x]
+function recursive_rewrite(expr::Expression, theory, args...)
+    trees = recursive_rewrite(expr.tree, theory, args...)
+    [Expression(t,expr.metadata) for t in trees]
 end
 
 #_symbols(e::Expr) = filter(x -> x isa Symbol, all_subexpressions(e))
