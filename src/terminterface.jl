@@ -1,5 +1,9 @@
 using TermInterface
 using DynamicExpressions.NodeModule: node_factory, default_allocator
+using DynamicExpressions.ExpressionModule: Metadata
+
+
+## TermInterface.jl for Node
 
 function _get_feature(s::Symbol)
     s = string(s)
@@ -61,19 +65,81 @@ function TermInterface.arguments(n::Node)
 end
 
 
+## TermInterface.jl for Expression
+
+
+TermInterface.isexpr(e::Expression) = isexpr(e.tree)
+TermInterface.iscall(e::Expression) = iscall(e.tree)
+TermInterface.arity(e::Expression) = e.tree.degree
+TermInterface.operation(e::Expression) = head(e)
+TermInterface.arguments(e::Expression) = children(e)
+
+function TermInterface.head(e::Expression)
+    if isexpr(e)
+        opcode = e.tree.op
+        if arity(e) == 1
+            e.metadata.operators.unaops[opcode]
+        else
+            e.metadata.operators.binops[opcode]
+        end
+    else
+        error("'$e' does not have a head.")
+    end
+end
+
+function TermInterface.children(e::Expression)
+    if isexpr(e)
+        if arity(e) == 1
+            [Expression(e.tree.l, e.metadata),]
+        else
+            [Expression(e.tree.l, e.metadata), Expression(e.tree.r, e.metadata)]
+        end
+    else
+        error("'$e' does not have children.")
+    end
+end
+
+function TermInterface.maketerm(::Type{<:Expression}, head, children::Vector{<:Node}, metadata)
+    Expression(head(children...); metadata...)
+end
+function TermInterface.maketerm(::Type{<:Expression}, head, children::Vector{<:Node}, metadata::Metadata)
+    Expression(head(children...), metadata)
+end
+function TermInterface.maketerm(::Type{<:Expression}, head, children::Vector{<:Expression}, metadata)
+    maketerm(Expression, head, [c.tree for c in children], metadata)
+end
+function TermInterface.maketerm(::Type{<:Expression}, head, children::Vector{<:Expression}, ::Nothing)
+    if length(children) == 1
+        (left,) = children
+        Expression(head(left.tree), left.metadata)
+    elseif length(children) == 2
+        (left, right) = children
+        @assert left.metadata == right.metadata
+        Expression(head(left.tree, right.tree), left.metadata)
+    else
+        error("Expressions can only have one or two children.")
+    end
+end
 
 # FIXME: make sure MT.jl rules work on dynamic expressions
-# using Metatheory
-# using Metatheory.Rules: instantiate
-# function Metatheory.Rules.instantiate(left::Node, pat::PatExpr, bindings)
-#     @info "instantiate" left pat bindings arguments(pat)
-#     ntail = tuple(map(arg -> instantiate(left, arg, bindings), arguments(pat))...)
-#     op = operation(pat)
-#     h = DynamicExpressions.OperatorEnumConstructionModule.LATEST_BINARY_OPERATOR_MAPPING[op]
-#     @info "make" maketerm(typeof(left), h, ntail, nothing) ntail
-#     maketerm(typeof(left), h, ntail, nothing)
-# end
-# 
-# function Metatheory.Rules.instantiate(left::Node, pat::PatLiteral, bindings)
-#     typeof(left)(val=pat.value)
-# end
+using Metatheory
+using Metatheory.Rules: instantiate
+function Metatheory.Rules.instantiate(left::Expression, pat::PatExpr, bindings)
+    ntail = map(arg -> instantiate(left, arg, bindings), arguments(pat))
+    maketerm(Expression, head(pat), ntail, left.metadata)
+end
+function Metatheory.Rules.instantiate(left::Expression, pat::PatLiteral, bindings)
+    NT = typeof(left.tree)
+    Expression(NT(val=pat.value), left.metadata)
+end
+
+#function Metatheory.Rules.instantiate(left::Node, pat::PatExpr, bindings)
+#    ntail = tuple(map(arg -> instantiate(left, arg, bindings), arguments(pat))...)
+#    op = operation(pat)
+#    h = DynamicExpressions.OperatorEnumConstructionModule.LATEST_BINARY_OPERATOR_MAPPING[op]
+#    @info "make" maketerm(typeof(left), h, ntail, nothing) ntail
+#    maketerm(typeof(left), h, ntail, nothing)
+#end
+#function Metatheory.Rules.instantiate(left::Node, pat::PatLiteral, bindings)
+#    typeof(left)(val=pat.value)
+#end
