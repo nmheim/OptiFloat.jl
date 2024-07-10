@@ -6,6 +6,10 @@ using TestItemRunner
     include("terminferface.jl")
 end
 
+@testitem "rewrite.jl" begin
+    include("rewrite.jl")
+end
+
 @testitem "sample.jl" begin
     include("sample.jl")
 end

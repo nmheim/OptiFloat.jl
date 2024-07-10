@@ -13,16 +13,7 @@ using OptiFloat:
     recursive_rewrite,
     simplify,
     Candidate,
-    local_biterrors
-
-function first_unused(candidates)
-    for c in candidates
-        if !(c.used[])
-            return c
-        end
-    end
-    error("No more unused candidates!")
-end
+    local_biterrors, first_unused
 
 T = Float16
 orig_expr = :(sqrt(x + 1) - sqrt(x))
@@ -36,50 +27,56 @@ dexpr = parse_expression(orig_expr; kws...)
 arity = length(dexpr.metadata.variable_names)
 points = sample_bitpattern(dexpr, T, arity, 8000)
 points = logsample(dexpr, T, arity, 8000)
-candidates = [Candidate(dexpr, points)]
+candidates = [Candidate(dexpr, dexpr, points)]
 
-#function optifloat!(candidates, points::Matrix{T}) where T
-candidate = first_unused(candidates)
+    candidate = first_unused(candidates)
 
-@info "Computing local error..."
-local_errs = local_biterrors(dexpr, points)
+    @info "Computing local error..."
+    local_errs = local_biterrors(candidate.cand_expr, points)
 
-(err, worst_expr) = findmax(local_errs)
-@info "Expression with highest local error" worst_expr err
+    (err, worst_expr) = findmax(local_errs)
+    @info "Expression with highest local error" worst_expr err
 
-@info "Recursive rewrite to obtain new candidate expressions"
-expr = candidate.toexpr(worst_expr)
-new_candidates = unique(recursive_rewrite(expr, OptiFloat.REWRITE_THEORY))#[1:10]
+    @info "Recursive rewrite to obtain new candidate expressions"
+    expr = candidate.toexpr(worst_expr)
+    # FIXME: replace with postwalk?
+    new_candidates = unique(recursive_rewrite(expr, OptiFloat.REWRITE_THEORY))
 
-@info "Simplifying candidates"
-all_improved = map(new_candidates) do newc
-    simplified = simplify(newc, OptiFloat.SIMPLIFY_THEORY; steps=3)
-end |> unique
-theories = map(all_improved) do improved
-    r = eval(:(@rule a b c $expr --> $(improved)))
-    RewriteRule[r]
-end
+    @info "Simplifying candidates"
+    all_improved = map(new_candidates) do newc
+        simplified = simplify(newc, OptiFloat.SIMPLIFY_THEORY; steps=3)
+    end |> unique
 
-@info "Reconstruct with simplified candidates"
-all_simplified = map(theories) do t
-    e = rewrite(candidate.toexpr(candidate.expr.tree), t)
-    simplify(e, OptiFloat.SIMPLIFY_THEORY; steps=3)
-end |> unique
+    @info "Reconstruct with simplified candidates"
+    all_simplified =
+        map(all_improved) do improved
+            rewrite = Postwalk(PassThrough(x -> x == expr ? improved : nothing))
+            e = rewrite(candidate.toexpr(candidate.cand_expr.tree))
+            simplify(e, OptiFloat.SIMPLIFY_THEORY; steps=3)
+        end |> unique
 
-new_cs = Any[]
-for simpl in all_simplified
-    new_dexpr = parse_expression(simpl; kws...)
-    new_candiate = Candidate(new_dexpr, points)
-    if any([any(new_candiate.errors .< c.errors) for c in candidates])
-        push!(new_cs, new_candiate)
+    # TODO: Jaques Carrett knows about unsound rules e.g. to deal with
+    #  :(((4.0c) / (b + sqrt(b ^ 2.0 - 4.0c))) / (2.0c)) division by zero
+
+    new_cs = Any[]
+    for simpl in all_simplified
+        expr = candidate.cand_expr
+        new_dexpr = parse_expression(
+            simpl;
+            binary_operators=expr.metadata.operators.binops |> collect,
+            unary_operators=expr.metadata.operators.unaops |> collect,
+            variable_names=expr.metadata.variable_names,
+            node_type=Node{T},
+        )
+        new_candidate = Candidate(new_dexpr, candidate.orig_expr, points)
+        if any([any(new_candidate.errors .< c.errors) for c in candidates])
+            push!(new_cs, new_candidate)
+        end
     end
-end
 
-candidates = vcat(candidates, new_cs) |> unique
-candidate.used[] = true
-display(candidates)
+    append!(candidates, new_cs)
+    unique!(candidates)
+    candidate.used[] = true
+    display(candidates)
 
-@info "TODO: regime inference"
-#end
 
-# optifloat!(candidates, points)

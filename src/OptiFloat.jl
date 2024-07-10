@@ -19,6 +19,7 @@ include("rules.jl")
 
 rewrite_once(x, theory) = [x]
 function rewrite_once(expr::Expr, theory)
+    # FIXME: replace with looped PassThrough
     rws = [expr]
     for rule in theory
         rw = try
@@ -35,7 +36,7 @@ end
 
 recursive_rewrite(x, theory, depth=3) = [x]
 function recursive_rewrite(expr::Expr, theory, depth=3)
-    # FIXME: replace with Postwalk
+    #  FIXME: replace with Postwalk
     if iscall(expr) && depth > 0
         op = operation(expr)
         argss =
