@@ -44,5 +44,6 @@ end
     @test rule(dex) == Expression(x1+1; meta...)
 
     rule = @rule x x+1 --> x+2
+    @test rule(:(x1+1)) == :(x1+2)
     @test rule(Expression(x1+1; meta...)) == x1+2
 end

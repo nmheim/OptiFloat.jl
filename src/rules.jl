@@ -119,28 +119,28 @@ theories = (;
         @rule "frac-add" a c b d ((a / b) + (c / d)) --> (((a * d) + (b * c)) / (b * d))
         @rule "frac-sub" a c b d ((a / b) - (c / d)) --> (((a * d) - (b * c)) / (b * d))
         @rule "frac-times" a c b d ((a / b) * (c / d)) --> ((a * c) / (b * d))
-        @rule "frac-2neg" a b (a / b) --> (neg(a) / neg(b))
+        @rule "frac-2neg" a b (a / b) --> (-a / -b)
     ],
     squares_reduce=[
         @rule "rem-square-sqrt" x (sqrt(x) * sqrt(x)) --> x
-        @rule "rem-sqrt-square" x sqrt((x * x)) --> fabs(x)
+        @rule "rem-sqrt-square" x sqrt((x * x)) --> abs(x)
     ],
     #squares_reduce_fp_sound = [
     #   @rule "sqr-neg" x (neg(x)*neg(x)) --> (x*x)
-    #   @rule "sqr-abs" x (fabs(x)*fabs(x)) --> (x*x)
+    #   @rule "sqr-abs" x (abs(x)*abs(x)) --> (x*x)
     #],
-    #fabs_reduce = [
-    #   @rule "fabs-fabs" x fabs(fabs(x)) --> fabs(x)
-    #   @rule "fabs-sub" a b fabs((a-b)) --> fabs((b-a))
-    #   @rule "fabs-neg" x fabs(neg(x)) --> fabs(x)
-    #   @rule "fabs-sqr" x fabs((x*x)) --> (x*x)
-    #   @rule "fabs-mul" a b fabs((a*b)) --> (fabs(a)*fabs(b))
-    #   @rule "fabs-div" a b fabs((a/b)) --> (fabs(a)/fabs(b))
+    #abs_reduce = [
+    #   @rule "abs-abs" x abs(abs(x)) --> abs(x)
+    #   @rule "abs-sub" a b abs((a-b)) --> abs((b-a))
+    #   @rule "abs-neg" x abs(neg(x)) --> abs(x)
+    #   @rule "abs-sqr" x abs((x*x)) --> (x*x)
+    #   @rule "abs-mul" a b abs((a*b)) --> (abs(a)*abs(b))
+    #   @rule "abs-div" a b abs((a/b)) --> (abs(a)/abs(b))
     #],
-    #fabs_expand = [
-    #   @rule "neg-fabs" x fabs(x) --> fabs(neg(x))
-    #   @rule "mul-fabs" a b (fabs(a)*fabs(b)) --> fabs((a*b))
-    #   @rule "div-fabs" a b (fabs(a)/fabs(b)) --> fabs((a/b))
+    #abs_expand = [
+    #   @rule "neg-abs" x abs(x) --> abs(neg(x))
+    #   @rule "mul-abs" a b (abs(a)*abs(b)) --> abs((a*b))
+    #   @rule "div-abs" a b (abs(a)/abs(b)) --> abs((a/b))
     #],
     #squares_transform_sound = [
     #   @rule "sqrt-pow2" y x (sqrt(x)^y) --> (x^(y/2))
@@ -289,8 +289,8 @@ theories = (;
     ##   @rule "cos-acos" x cos(acos(x)) --> x
     ##   @rule "tan-atan" x tan(atan(x)) --> x
     ##   @rule "atan-tan" x atan(tan(x)) --> (remainder x (pi))
-    ##   @rule "asin-sin" x asin(sin(x)) --> (- (fabs (remainder (+ x (/ (pi) 2)) (* 2 (pi)))) (/ (pi) 2))
-    ##   @rule "acos-cos" x acos(cos(x)) --> (fabs (remainder x (* 2 (pi))))
+    ##   @rule "asin-sin" x asin(sin(x)) --> (- (abs (remainder (+ x (/ (pi) 2)) (* 2 (pi)))) (/ (pi) 2))
+    ##   @rule "acos-cos" x acos(cos(x)) --> (abs (remainder x (* 2 (pi))))
     ##],
     #trig_inverses_simplified = [
     #   @rule "atan-tan-s" x atan(tan(x)) --> x

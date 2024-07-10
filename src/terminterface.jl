@@ -70,7 +70,7 @@ end
 
 TermInterface.isexpr(e::Expression) = isexpr(e.tree)
 TermInterface.iscall(e::Expression) = iscall(e.tree)
-TermInterface.arity(e::Expression) = e.tree.degree
+TermInterface.arity(e::Expression) = convert(Int, e.tree.degree)
 TermInterface.operation(e::Expression) = head(e)
 TermInterface.arguments(e::Expression) = children(e)
 
@@ -99,6 +99,11 @@ function TermInterface.children(e::Expression)
     end
 end
 
+# FIXME: getting vectors of any from MT.jl, can we change that?
+function TermInterface.maketerm(::Type{<:Expression}, head, children::Vector, metadata)
+    cs = [isa(c,Expression) ? c.tree : c for c in children]
+    Expression(head(cs...), metadata)
+end
 function TermInterface.maketerm(::Type{<:Expression}, head, children::Vector{<:Node}, metadata)
     Expression(head(children...); metadata...)
 end

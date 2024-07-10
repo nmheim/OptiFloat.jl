@@ -70,6 +70,18 @@ function biterrorscore(expr, x::AbstractArray{T}; kw...) where {T<:AbstractFloat
     convert(T, score)
 end
 
+function all_operators(expr::Expr)
+    ops = if iscall(expr)
+        [operation(expr); reduce(vcat, all_operators.(arguments(expr)))]
+    else
+        []
+    end
+    unique(ops)
+end
+all_operators(r::RewriteRule) = unique([all_operators(r.lhs_original); all_operators(r.rhs_original)])
+all_operators(x::Vector) = unique(mapreduce(all_operators, vcat, x))
+all_operators(x) = []
+
 function all_subexpressions(expr::Union{Expr,Node})
     subs = if iscall(expr)
         vcat([expr], reduce(vcat, all_subexpressions.(arguments(expr))))

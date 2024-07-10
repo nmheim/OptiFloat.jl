@@ -17,8 +17,10 @@ include("evaluate.jl")
 include("error.jl")
 include("rules.jl")
 
-#rewrite_once(expr, theory) = unique(vcat([expr], map(rule -> PassThrough(rule)(expr), theory)))
-rewrite_once(expr, theory) = vcat([expr], map(rule -> PassThrough(rule)(expr), theory))
+function rewrite_once(expr, theory)
+    unique(vcat([expr], map(rule -> PassThrough(rule)(expr), theory)))
+end
+#rewrite_once(expr, theory) = vcat([expr], map(rule -> PassThrough(rule)(expr), theory))
 
 function recursive_rewrite(expr::E, theory, depth=3) where E
     if iscall(expr) && depth > 0
@@ -28,50 +30,17 @@ function recursive_rewrite(expr::E, theory, depth=3) where E
         # all combinations of rewritten arguments
         argss = Iterators.product(argss...)
         # rewrite op itself
-        rwo = [rewrite_once(maketerm(E, :call, (op, args...), nothing), theory) for args in argss]
+        rwo = if expr isa Expr  # FIXME: uglyyyy
+            [rewrite_once(maketerm(E, :call, (op, args...), nothing), theory) for args in argss]
+        else
+            [rewrite_once(maketerm(E, op, collect(args), nothing), theory) for args in argss]
+        end
         reduce(vcat, rwo)
     else
         [expr]
     end
 end
 recursive_rewrite(x::Union{Symbol,Number}, theory, depth=3) = [x]
-function recursive_rewrite(expr::Expression, theory, args...)
-    trees = recursive_rewrite(expr.tree, theory, args...)
-    [Expression(t,expr.metadata) for t in trees]
-end
-
-#_symbols(e::Expr) = filter(x -> x isa Symbol, all_subexpressions(e))
-#
-#function DynamicExpressions.parse_expression(ex, node_type)
-#    vars = sort(string.(_symbols(ex)))
-#    (unaops, binops) = unary_binary_ops(ex)
-#    parse_expression(
-#        ex,
-#        variable_names=vars,
-#        binary_operators=binops,
-#        unary_operators=unaops,
-#        node_type=node_type
-#    )
-#end
-#
-#function unary_binary_ops(expr)
-#    ops = eval.(unique(operation.(filter(iscall, all_subexpressions(expr)))))
-#    unary = Function[]
-#    binary = Function[]
-#    for op in ops
-#        nargs = maximum([m.nargs-1 for m in methods(op)])
-#        if nargs > 1
-#            push!(binary, op)
-#            # special case for e.g.: -1 or -x
-#            if op == -
-#                push!(unary, op)
-#            end
-#        else
-#            push!(unary, op)
-#        end
-#    end
-#    (unary, binary)
-#end
 
 replace_syms(s, syms::Dict) = haskey(syms, s) ? syms[s] : s
 function replace_syms(expr::Expr, syms::Dict)

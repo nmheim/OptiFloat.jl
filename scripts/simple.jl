@@ -19,14 +19,13 @@ T = Float16
 orig_expr = :(sqrt(x + 1) - sqrt(x))
 kws = (;
     binary_operators=[-, ^, /, *, +],
-    unary_operators=[-, sqrt],
+    unary_operators=[-, sqrt, abs, exp, log, cbrt],
     node_type=Node{T},
     variable_names=["x"],
 )
 dexpr = parse_expression(orig_expr; kws...)
-arity = length(dexpr.metadata.variable_names)
-points = sample_bitpattern(dexpr, T, arity, 8000)
-points = logsample(dexpr, T, arity, 8000)
+# points = sample_bitpattern(dexpr, T, arity(dexpr), 8000)
+points = logsample(dexpr, T, arity(dexpr), 8000)
 candidates = [Candidate(dexpr, dexpr, points)]
 
     candidate = first_unused(candidates)
@@ -38,9 +37,8 @@ candidates = [Candidate(dexpr, dexpr, points)]
     @info "Expression with highest local error" worst_expr err
 
     @info "Recursive rewrite to obtain new candidate expressions"
-    expr = candidate.toexpr(worst_expr)
-    # FIXME: replace with postwalk?
-    new_candidates = unique(recursive_rewrite(expr, OptiFloat.REWRITE_THEORY))
+    # expr = candidate.toexpr(worst_expr)
+    new_candidates = recursive_rewrite(dexpr, OptiFloat.REWRITE_THEORY)
 
     @info "Simplifying candidates"
     all_improved = map(new_candidates) do newc

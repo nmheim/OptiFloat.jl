@@ -12,23 +12,14 @@ end
     expr = :(1/x - y/z)
     rewritten_expr = :((1z - (x*y))/(x*z))
     rws = rewrite_once(expr, theory)
-    display(rws)
     @test all(rws .== [expr, rewritten_expr])
 
     # dynamic expression
-    dexpr = parse_expression(expr,
-        binary_operators = [-, /],
-        variable_names = ["x", "y", "z"],
-    )
-    rewritten_dexpr = parse_expression(rewritten_expr,
-        binary_operators = [-, /, *],
-        variable_names = ["x", "y", "z"],
-    )
-    display("asdfasdfasdf")
-    rws = rewrite_once(dexpr.tree, theory)
-    #display([dexpr.tree, rewritten_dexpr.tree])
-    #error()
-    @test all(rws .== [dexpr.tree, rewritten_dexpr.tree])
+    kws = (; binary_operators = [-, /, *], variable_names = ["x", "y", "z"])
+    dexpr = parse_expression(expr; kws...)
+    rewritten_dexpr = parse_expression(rewritten_expr; kws...)
+    rws = rewrite_once(dexpr, theory)
+    @test all(rws .== [dexpr, rewritten_dexpr])
 end
 
 @testset "recursive_rewrite" begin
@@ -40,6 +31,13 @@ end
     ]
 
     for (target, result) in zip(rws, recursive_rewrite(expr, theory))
+        @test target == result
+    end
+
+    kws = (; binary_operators = [+, -, /, *], variable_names = ["a", "b", "c", "d", "f"])
+    dexpr = parse_expression(expr; kws...)
+    drws = [parse_expression(e; kws...) for e in rws]
+    for (target, result) in zip(drws, recursive_rewrite(dexpr, theory))
         @test target == result
     end
 end

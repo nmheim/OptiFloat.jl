@@ -16,7 +16,7 @@ ex = parse_expression(
 )
 
 
-g = EGraph(ex.tree)
+g = EGraph(ex)
 g = EGraph(e)
 saturate!(g, OptiFloat.SIMPLIFY_THEORY)
 extract!(g, astsize)
