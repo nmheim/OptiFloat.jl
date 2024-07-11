@@ -1,5 +1,13 @@
-using DynamicExpressions: Node, parse_expression, logsample
-using OptiFloat: Candidate, all_subexpressions, ulpdistance, biterror, local_biterror, local_biterrors, logsample
+using DynamicExpressions: Node, parse_expression
+using OptiFloat:
+    Candidate,
+    all_subexpressions,
+    ulpdistance,
+    biterror,
+    local_biterror,
+    local_biterrors,
+    logsample,
+    logsample
 
 @testset "Biterror" begin
     @test ulpdistance(Float16(0), Float16(1)) == 15360
@@ -15,9 +23,11 @@ using OptiFloat: Candidate, all_subexpressions, ulpdistance, biterror, local_bit
     @test round.(Int, biterror(dexpr, reshape([x], 1, 1); accum=identity)) == [14]
 end
 
-#@testset "Local biterror dynamic expression" begin
+@testset "Local biterror dynamic expression" begin
     T = Float16
-    kws = (; binary_operators=[+, -], unary_operators=[sqrt], variable_names=["x1"], node_type=Node{T})
+    kws = (;
+        binary_operators=[+, -], unary_operators=[sqrt], variable_names=["x1"], node_type=Node{T}
+    )
     dexpr = parse_expression(:(x1 + 1 - x1); kws...)
 
     x = reshape(T[5e3 for _ in 1:100], 1, 100)
@@ -29,19 +39,19 @@ end
 
     a = Node(T; feature=1)
     target = Dict(
-        Node{T}(; val=1.0) => T(0), a + 1 => T(0), (a + 1) - a => T(log2(ulpdistance(T(0), T(1)))), a => T(0)
+        Node{T}(; val=1.0) => 0,
+        a + 1 => 0,
+        (a + 1) - a => round(Int, log2(ulpdistance(T(0), T(1)))),
+        a => 0,
     )
-    @test target == d
+    @test target == Dict(k=>round(Int,v) for (k,v) in d)
 
-
-
-    dexpr = parse_expression(:(sqrt(x1 + 1) - sqrt(x1)); kws...)
-    points = logsample(dexpr, T, arity, 8000)
-    local_biterrors(dexpr, points)
-
+    # dexpr = parse_expression(:(sqrt(x1 + 1) - sqrt(x1)); kws...)
+    # points = logsample(dexpr, T, arity, 8000)
+    # local_biterrors(dexpr, points)
     # FIXME: Supposition.jl
     # check that error of any expression is >= 0
-#end
+end
 
 @testset "logsample" begin
     T = Float16
@@ -53,7 +63,7 @@ end
         variable_names=["b", "c"],
     )
     dexpr = parse_expression(orig_expr; kws...)
-    points = logsample(dexpr, T, 2, 8000, eval_exact=false)
+    points = logsample(dexpr, T, 2, 8000; eval_exact=false)
     local_biterrors(dexpr, points)
     c = Candidate(dexpr, dexpr, points)
     isfinite(sum(c.errors))

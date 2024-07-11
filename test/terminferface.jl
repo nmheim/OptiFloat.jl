@@ -1,23 +1,26 @@
 using TermInterface
 using Metatheory
-using DynamicExpressions: Node, OperatorEnum, parse_expression
+using DynamicExpressions: Expression, Node, OperatorEnum, parse_expression
 using OptiFloat: all_subexpressions
 
 @testset "TermInterface for Expression" begin
     ex = :(a + b)
     NT = Node{Float16}
-    kws = (; binary_operators=[-,+], variable_names=["a","b"], node_type=NT)
-    meta = (; operators=OperatorEnum(binary_operators=kws.binary_operators), variable_names=kws.variable_names)
-    a = Expression(NT(feature=1); meta...)
-    b = Expression(NT(feature=2); meta...)
+    kws = (; binary_operators=[-, +], variable_names=["a", "b"], node_type=NT)
+    meta = (;
+        operators=OperatorEnum(; binary_operators=kws.binary_operators),
+        variable_names=kws.variable_names,
+    )
+    a = Expression(NT(; feature=1); meta...)
+    b = Expression(NT(; feature=2); meta...)
     dex = parse_expression(ex; kws...)
     @test head(dex) == +
-    @test children(dex) == [a,b]
+    @test children(dex) == [a, b]
     @test operation(dex) == +
-    @test arguments(dex) == [a,b]
+    @test arguments(dex) == [a, b]
     @test isexpr(dex)
     @test iscall(dex)
-    @test dex == maketerm(Expression, +, [a,b], nothing)
+    @test dex == maketerm(Expression, +, [a, b], nothing)
 end
 
 @testset "all_subexpressions" begin
@@ -34,16 +37,16 @@ end
 end
 
 @testset "Rules" begin
-    x1 = Node{Float64}(feature=1)
-    ops = OperatorEnum(binary_operators=(+,))
+    x1 = Node{Float64}(; feature=1)
+    ops = OperatorEnum(; binary_operators=(+,))
     vars = ["x"]
     meta = (; variable_names=vars, operators=ops)
     dex = Expression(x1; meta...)
 
     rule = @rule x x --> x + 1
-    @test rule(dex) == Expression(x1+1; meta...)
+    @test rule(dex) == Expression(x1 + 1; meta...)
 
-    rule = @rule x x+1 --> x+2
-    @test rule(:(x1+1)) == :(x1+2)
-    @test rule(Expression(x1+1; meta...)) == x1+2
+    rule = @rule x x + 1 --> x + 2
+    @test rule(:(x1 + 1)) == :(x1 + 2)
+    @test rule(Expression(x1 + 1; meta...)) == x1 + 2
 end
