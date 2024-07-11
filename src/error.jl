@@ -21,7 +21,7 @@ function biterror(x::T, y::T) where T
     T(ulp == 0 ? 0 : log2(ulp))
 end
 
-function biterror(orig, target, ops::OperatorEnum, x::AbstractVector{T}) where {T}
+function biterror(orig, target, ops::AbstractOperatorEnum, x::AbstractVector{T}) where {T}
     y_exact = evaluate_exact(target, ops, reshape(x, :, 1)) |> only
     y_approx = try
         evaluate_approx(orig, ops, x)
@@ -36,7 +36,7 @@ function biterror(orig, target, ops::OperatorEnum, x::AbstractVector{T}) where {
     biterror(y_approx, convert(T, y_exact))
 end
 
-function biterror(orig, target, ops::OperatorEnum, X::AbstractMatrix{T}; accum=mean) where {T}
+function biterror(orig, target, ops::AbstractOperatorEnum, X::AbstractMatrix{T}; accum=mean) where {T}
     #y_exact = evaluate_exact(target, ops, X)
     #y_approx = try
     #    evaluate_approx(expr, ops, X)
@@ -108,7 +108,7 @@ function local_biterror(expr::Expression, x::AbstractArray)
 end
 
 function local_biterror(
-    tree::Node{T}, ops::OperatorEnum, X::AbstractMatrix{T}; accum=mean
+    tree::Node{T}, ops::AbstractOperatorEnum, X::AbstractMatrix{T}; accum=mean
 ) where {T}
     if tree.degree == 0 #|| tree.constant
         return T(0)
@@ -135,6 +135,6 @@ end
 function local_biterrors(expr::Expression, x::AbstractArray)
     local_biterrors(expr.tree, expr.metadata.operators, x)
 end
-function local_biterrors(tree::Node{T}, ops::OperatorEnum, X::AbstractMatrix{T}) where {T}
+function local_biterrors(tree::Node{T}, ops::AbstractOperatorEnum, X::AbstractMatrix{T}) where {T}
     Dict(e => local_biterror(e, ops, X) for e in all_subexpressions(tree))
 end
