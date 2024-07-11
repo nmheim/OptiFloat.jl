@@ -15,19 +15,17 @@ end
 TermInterface.isexpr(n::Node) = n.degree > 0
 TermInterface.iscall(n::Node) = isexpr(n)
 
-# binary expression
-function TermInterface.maketerm(
-    N::Type{<:Node{T}}, head::UInt8, children::Tuple{Any,Any}, metadata
-) where {T}
-    (left, right) = children
+# expression
+function TermInterface.maketerm(N::Type{<:Node{T}}, head::UInt8, children, metadata) where {T}
+    if length(children) == 2
+        (left, right) = children
+    elseif length(children) == 1
+        (left,) = children
+        right = nothing
+    else
+        error("whwaaaaaaa")
+    end
     node_factory(N, T, nothing, nothing, head, left, right, default_allocator)
-end
-# unary expression
-function TermInterface.maketerm(
-    N::Type{<:Node{T}}, head::UInt8, children::Tuple{Any}, metadata
-) where {T}
-    (left,) = children
-    node_factory(N, T, nothing, nothing, head, left, nothing, default_allocator)
 end
 # variable
 function TermInterface.maketerm(N::Type{<:Node{T}}, head::Symbol, children, metadata) where {T}
@@ -55,7 +53,7 @@ end
 
 function TermInterface.children(n::Node)
     isexpr(n) || error("children called on a non-function call expression")
-    n.degree == 1 ? (n.op, n.l) : (n.op, n.l, n.r)
+    n.degree == 1 ? [n.op, n.l] : [n.op, n.l, n.r]
 end
 function TermInterface.operation(n::Node)
     iscall(n) ? n.op : error("operation called on a non-function call expression")

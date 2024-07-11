@@ -44,7 +44,7 @@ end
 function sample_bitpattern(expr::Expression, args...)
     sample_bitpattern(expr.tree, expr.metadata.operators, args...)
 end
-function sample_bitpattern(expr::Node, ops::OperatorEnum, T::Type, inputsize::Int, batchsize::Int)
+function sample_bitpattern(expr::Node, ops::AbstractOperatorEnum, T::Type, inputsize::Int, batchsize::Int)
     testfn(x) = evaluate_exact(expr, ops, x)
     sample_finite(sample_bitpattern, testfn, T, inputsize, batchsize)
 end

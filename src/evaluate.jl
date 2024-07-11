@@ -1,4 +1,4 @@
-using DynamicExpressions: Expression, Node, OperatorEnum
+using DynamicExpressions: Expression, Node, AbstractOperatorEnum
 
 function evaluate_exact(expr::Expression{T}, x::AbstractArray{T}) where {T}
     evaluate_exact(expr.tree, expr.metadata.operators, x)
@@ -6,7 +6,7 @@ end
 
 function evaluate_exact(
     tree::Node{I},
-    ops::OperatorEnum,
+    ops::AbstractOperatorEnum,
     X::AbstractMatrix{I};
     init_precision::Int=53,
     max_precision::Int=1500,
@@ -27,12 +27,12 @@ function evaluate_exact(
 end
 
 function evaluate_exact(
-    tree::Node{T}, ops::OperatorEnum, X::AbstractMatrix{T}; kw...
+    tree::Node{T}, ops::AbstractOperatorEnum, X::AbstractMatrix{T}; kw...
 ) where {T<:AbstractFloat}
     I = Interval{BigFloat}
     evaluate_exact(convert(Node{I}, tree), ops, convert(Matrix{I}, X); kw...)
 end
-function evaluate_exact(tree::Node, ops::OperatorEnum, x::AbstractVector; kw...)
+function evaluate_exact(tree::Node, ops::AbstractOperatorEnum, x::AbstractVector; kw...)
     only(evaluate_exact(tree, ops, reshape(x, :, 1)))
 end
 
@@ -60,10 +60,10 @@ evaluate(args...) = evaluate_approx(args...)
 function evaluate_approx(expr::Expression, x::AbstractArray)
     evaluate_approx(expr.tree, expr.metadata.operators, x)
 end
-function evaluate_approx(tree::Node, ops::OperatorEnum, x::AbstractVector)
+function evaluate_approx(tree::Node, ops::AbstractOperatorEnum, x::AbstractVector)
     tree(reshape(x, :, 1), ops) |> only
 end
-function evaluate_approx(tree::Node, ops::OperatorEnum, xs::AbstractMatrix)
+function evaluate_approx(tree::Node, ops::AbstractOperatorEnum, xs::AbstractMatrix)
     map(x -> evaluate_approx(tree, ops, x), eachcol(xs))
 end
 
@@ -125,7 +125,7 @@ function evaluate_approx(regs::Regimes, x::AbstractVector)
     end
     error("No applicable regime.")
 end
-function evaluate_approx(regs::Regimes, ops::OperatorEnum, x::AbstractVector)
+function evaluate_approx(regs::Regimes, ops::AbstractOperatorEnum, x::AbstractVector)
     for regime in regs.regs
         if contains(regime, x)
             return evaluate_approx(regime.expr.tree, ops, x)
@@ -159,7 +159,7 @@ function evaluate_exact(regimes::Regimes, x::AbstractVector; kw...)
     end
     error("No applicable regime.")
 end
-#function evaluate_exact(regimes::Regimes, ops::OperatorEnum, x::AbstractVector; kw...)
+#function evaluate_exact(regimes::Regimes, ops::AbstractOperatorEnum, x::AbstractVector; kw...)
 #    @assert size(x,1) == 1
 #    for regime in regimes.regs
 #        if contains(regime, x)
