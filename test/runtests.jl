@@ -21,3 +21,5 @@ end
 @testitem "error.jl" begin
     include("error.jl")
 end
+
+@run_package_tests verbose=true

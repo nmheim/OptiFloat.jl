@@ -27,17 +27,38 @@
 (define test-expr '(+ (+ a b) c))
 (infix->string test-expr)
 
+(define (print-list-elements port lst)
+  (cond
+    [(empty? lst) '()] ; base case: if the list is empty, do nothing
+    [else
+     (display (first lst)) ; display the first element
+     (newline) ; move to the next line
+     (print-list-elements (rest lst))])) ; recursive call on the rest of the list
+
+(define (d->u sym)
+  (string-replace (symbol->string sym) "-" "_"))
+
+(define (racketsyms->juliasyms syms)
+  (string-append
+    "("
+    (string-join (map (lambda (s) (string-append ":" (d->u s))) syms) ", " #:after-last ",")
+    ")"))
+
 (struct ruleset (name groups types rules)
           #:methods gen:custom-write
           [(define (write-proc rs port mode)
-           (fprintf port "~a = [\n~a\n]"
-                    (string-replace (symbol->string (ruleset-name rs)) "-" "_")
-                    (ruleset-rules rs)))])
+             (fprintf port "~a = (; groups=~a, rules=[\n"
+                (d->u (ruleset-name rs))
+                (racketsyms->juliasyms (ruleset-groups rs)))
+             (for ([r (ruleset-rules rs)])
+               (fprintf port "    ~a" r))
+             (fprintf port "]),"))])
+                    
 
 (struct rule (name input output)
         #:methods gen:custom-write
         [(define (write-proc rule port mode)
-           (fprintf port "  @rule \"~a\" ~a ~a --> ~a\n"
+           (fprintf port "@rule \"~a\" ~a ~a --> ~a\n"
                     (rule-name rule)
                     (string-join (unique (append (single-alpha-syms (rule-input rule))
                                                  (single-alpha-syms (rule-output rule)))) " ")
@@ -435,9 +456,9 @@
   [sin-asin    (sin (asin x))         x]
   [cos-acos    (cos (acos x))         x]
   [tan-atan    (tan (atan x))         x]
-  [atan-tan    (atan (tan x))         (remainder x (PI))]
-  [asin-sin    (asin (sin x))         (- (fabs (remainder (+ x (/ (PI) 2)) (* 2 (PI)))) (/ (PI) 2))]
-  [acos-cos    (acos (cos x))         (fabs (remainder x (* 2 (PI))))])
+  [atan-tan    (atan (tan x))         (remainder x (pi))]
+  [asin-sin    (asin (sin x))         (- (fabs (remainder (+ x (/ (pi) 2)) (* 2 (pi)))) (/ (pi) 2))]
+  [acos-cos    (acos (cos x))         (fabs (remainder x (* 2 (pi))))])
 
 (define-ruleset* trig-inverses-simplified (trigonometry)
   #:type ([x real])
@@ -454,25 +475,25 @@
   [-1-add-sin  (+ (* (sin a) (sin a)) -1)  (neg (* (cos a) (cos a)))]
   [sub-1-cos   (- (* (cos a) (cos a)) 1)   (neg (* (sin a) (sin a)))]
   [sub-1-sin   (- (* (sin a) (sin a)) 1)   (neg (* (cos a) (cos a)))]
-  [sin-PI/6    (sin (/ (PI) 6))        1/2]
-  [sin-PI/4    (sin (/ (PI) 4))        (/ (sqrt 2) 2)]
-  [sin-PI/3    (sin (/ (PI) 3))        (/ (sqrt 3) 2)]
-  [sin-PI/2    (sin (/ (PI) 2))        1]
-  [sin-PI      (sin (PI))              0]
-  [sin-+PI     (sin (+ x (PI)))        (neg (sin x))]
-  [sin-+PI/2   (sin (+ x (/ (PI) 2)))  (cos x)]
-  [cos-PI/6    (cos (/ (PI) 6))        (/ (sqrt 3) 2)]
-  [cos-PI/4    (cos (/ (PI) 4))        (/ (sqrt 2) 2)]
-  [cos-PI/3    (cos (/ (PI) 3))        1/2]
-  [cos-PI/2    (cos (/ (PI) 2))        0]
-  [cos-PI      (cos (PI))              -1]
-  [cos-+PI     (cos (+ x (PI)))        (neg (cos x))]
-  [cos-+PI/2   (cos (+ x (/ (PI) 2)))  (neg (sin x))]
-  [tan-PI/6    (tan (/ (PI) 6))        (/ 1 (sqrt 3))]
-  [tan-PI/4    (tan (/ (PI) 4))        1]
-  [tan-PI/3    (tan (/ (PI) 3))        (sqrt 3)]
-  [tan-PI      (tan (PI))              0]
-  [tan-+PI     (tan (+ x (PI)))        (tan x)]
+  [sin-pi/6    (sin (/ (pi) 6))        1/2]
+  [sin-pi/4    (sin (/ (pi) 4))        (/ (sqrt 2) 2)]
+  [sin-pi/3    (sin (/ (pi) 3))        (/ (sqrt 3) 2)]
+  [sin-pi/2    (sin (/ (pi) 2))        1]
+  [sin-pi      (sin (pi))              0]
+  [sin-+pi     (sin (+ x (pi)))        (neg (sin x))]
+  [sin-+pi/2   (sin (+ x (/ (pi) 2)))  (cos x)]
+  [cos-pi/6    (cos (/ (pi) 6))        (/ (sqrt 3) 2)]
+  [cos-pi/4    (cos (/ (pi) 4))        (/ (sqrt 2) 2)]
+  [cos-pi/3    (cos (/ (pi) 3))        1/2]
+  [cos-pi/2    (cos (/ (pi) 2))        0]
+  [cos-pi      (cos (pi))              -1]
+  [cos-+pi     (cos (+ x (pi)))        (neg (cos x))]
+  [cos-+pi/2   (cos (+ x (/ (pi) 2)))  (neg (sin x))]
+  [tan-pi/6    (tan (/ (pi) 6))        (/ 1 (sqrt 3))]
+  [tan-pi/4    (tan (/ (pi) 4))        1]
+  [tan-pi/3    (tan (/ (pi) 3))        (sqrt 3)]
+  [tan-pi      (tan (pi))              0]
+  [tan-+pi     (tan (+ x (pi)))        (tan x)]
   [hang-0p-tan (/ (sin a) (+ 1 (cos a)))     (tan (/ a 2))]
   [hang-0m-tan (/ (neg (sin a)) (+ 1 (cos a))) (tan (/ (neg a) 2))]
   [hang-p0-tan (/ (- 1 (cos a)) (sin a))     (tan (/ a 2))]
@@ -484,7 +505,7 @@
 
 (define-ruleset* trig-reduce (trigonometry)
   #:type ([a real] [b real] [x real])
-  [tan-+PI/2   (tan (+ x (/ (PI) 2)))  (/ -1 (tan x))]
+  [tan-+pi/2   (tan (+ x (/ (pi) 2)))  (/ -1 (tan x))]
   )
 
 (define-ruleset* trig-expand-sound (trigonometry sound)
@@ -540,10 +561,10 @@
   [tan-acos    (tan (acos x))         (/ (sqrt (- 1 (* x x))) x)]
   [sin-atan    (sin (atan x))         (/ x (sqrt (+ 1 (* x x))))]
   [cos-atan    (cos (atan x))         (/ 1 (sqrt (+ 1 (* x x))))]
-  [asin-acos   (asin x)               (- (/ (PI) 2) (acos x))]
-  [acos-asin   (acos x)               (- (/ (PI) 2) (asin x))]
+  [asin-acos   (asin x)               (- (/ (pi) 2) (acos x))]
+  [acos-asin   (acos x)               (- (/ (pi) 2) (asin x))]
   [asin-neg    (asin (neg x))         (neg (asin x))]
-  [acos-neg    (acos (neg x))         (- (PI) (acos x))]
+  [acos-neg    (acos (neg x))         (- (pi) (acos x))]
   [atan-neg    (atan (neg x))         (neg (atan x))])
 
 ; Hyperbolic trigonometric functions
@@ -613,10 +634,10 @@
 ;; Sound because it's about soundness over real numbers
 (define-ruleset* compare-reduce (bools simplify fp-safe-nan sound)
   #:type ([x real] [y real])
-  [lt-same      (<  x x)         (FALSE)]
-  [gt-same      (>  x x)         (FALSE)]
-  [lte-same     (<= x x)         (TRUE)]
-  [gte-same     (>= x x)         (TRUE)]
+  [lt-same      (<  x x)         (false)]
+  [gt-same      (>  x x)         (false)]
+  [lte-same     (<= x x)         (true)]
+  [gte-same     (>= x x)         (true)]
   [not-lt       (not (<  x y))   (>= x y)]
   [not-gt       (not (>  x y))   (<= x y)]
   [not-lte      (not (<= x y))   (>  x y)]
@@ -624,8 +645,8 @@
 
 (define-ruleset* branch-reduce (branches simplify fp-safe sound)
   #:type ([a bool] [b bool] [x real] [y real])
-  [if-true        (if (TRUE) x y)       x]
-  [if-false       (if (FALSE) x y)      y]
+  [if-true        (if (true) x y)       x]
+  [if-false       (if (false) x y)      y]
   [if-same        (if a x x)          x]
   [if-not         (if (not a) x y)    (if a y x)]
   [if-if-or       (if a x (if b x y)) (if (or a b) x y)]
