@@ -52,7 +52,7 @@ candidates = [Candidate(dexpr, dexpr, points)]
         simplified = simplify(newc, OptiFloat.SIMPLIFY_THEORY; steps=1)
     end |> unique
 
-    $ TODO: only rewrite CHILDREN OF MOST RECENTLY REWRITTEN OPERATION!!!
+    $ TODO: only simplify CHILDREN OF MOST RECENTLY REWRITTEN OPERATION!!!
     @info "Reconstruct with simplified candidates"
     all_simplified =
         map(all_improved) do improved

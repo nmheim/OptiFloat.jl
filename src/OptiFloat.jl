@@ -20,7 +20,6 @@ include("rules.jl")
 function rewrite_once(expr, theory; kws...)
     unique(vcat([expr], map(rule -> PassThrough(rule)(expr), theory)))
 end
-#rewrite_once(expr, theory) = vcat([expr], map(rule -> PassThrough(rule)(expr), theory))
 
 function recursive_rewrite(expr::E, theory; depth=3) where E
     if iscall(expr) && depth > 0
