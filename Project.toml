@@ -11,10 +11,6 @@ OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 TermInterface = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
 
-[extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-TestItemRunner = "f8b46487-2199-4994-9208-9a1283c18c0a"
-TestItems = "1c621080-faea-4a02-84b6-bbd5e436b8fe"
-
-[targets]
-test = ["Test", "TestItems", "TestItemRunner"]
+[sources]
+DynamicExpressions = {url = "https://github.com/nmheim/DynamicExpressions.jl.git", rev = "nh/early-exit"}
+Metatheory = {url = "https://github.com/JuliaSymbolics/Metatheory.jl", rev="ale/3.0"}
