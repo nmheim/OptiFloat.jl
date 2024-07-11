@@ -1,6 +1,6 @@
 module OptiFloat
 
-using DynamicExpressions: Node, OperatorEnum
+using DynamicExpressions: Node, AbstractOperatorEnum
 using DynamicExpressions
 using TermInterface
 using IntervalArithmetic: Interval, interval, bounds, isthin, mid, isbounded
@@ -11,35 +11,13 @@ using Metatheory.Rewriters: PassThrough, Postwalk
 # FIXME: type piracy
 Base.isfinite(x::Interval) = isbounded(x)
 
+include("rules-minus.jl")
+include("rewrite.jl")
 include("terminterface.jl")
 include("sample.jl")
 include("evaluate.jl")
 include("error.jl")
-include("rules.jl")
 
-function rewrite_once(expr, theory; kws...)
-    unique(vcat([expr], map(rule -> PassThrough(rule)(expr), theory)))
-end
-
-function recursive_rewrite(expr::E, theory; depth=3) where E
-    if iscall(expr) && depth > 0
-        op = operation(expr)
-        # rewrite all arguments to op
-        argss = [recursive_rewrite(a, theory; depth=depth - 1) for a in arguments(expr)]
-        # all combinations of rewritten arguments
-        argss = Iterators.product(argss...)
-        # rewrite op itself
-        rwo = if expr isa Expr  # FIXME: uglyyyy
-            [rewrite_once(maketerm(E, :call, (op, args...), nothing), theory; depth=depth) for args in argss]
-        else
-            [rewrite_once(maketerm(E, op, collect(args), nothing), theory; depth=depth) for args in argss]
-        end
-        reduce(vcat, rwo)
-    else
-        [expr]
-    end
-end
-recursive_rewrite(x::Union{Symbol,Number}, theory, depth=3) = [x]
 
 replace_syms(s, syms::Dict) = haskey(syms, s) ? syms[s] : s
 function replace_syms(expr::Expr, syms::Dict)
@@ -48,21 +26,6 @@ function replace_syms(expr::Expr, syms::Dict)
 end
 
 toexpr(e::Node, symbol_map) = replace_syms(Meta.parse(repr(e)), symbol_map)
-
-function simplify(expr, theory; steps=1, timeout=10)
-    for _ in 1:steps
-        g = EGraph(expr)
-        p = SaturationParams(;
-            timeout=timeout,
-            scheduler=Schedulers.BackoffScheduler,
-            schedulerparams=(match_limit=6000, ban_length=5),
-            timer=false,
-        )
-        saturate!(g, theory, p)
-        expr = extract!(g, astsize)
-    end
-    expr
-end
 
 struct Candidate{E<:Expression,A<:AbstractArray,F<:Function}
     cand_expr::E
@@ -101,39 +64,28 @@ function optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T
 
     @info "Computing local error..."
     local_errs = local_biterrors(candidate.cand_expr, points)
+    @info "errors:" local_errs
 
     (err, worst_expr) = findmax(local_errs)
     @info "Expression with highest local error" worst_expr err
 
     @info "Recursive rewrite to obtain new candidate expressions"
     expr = candidate.toexpr(worst_expr)
-    # FIXME: replace with postwalk?
-    new_candidates = unique(recursive_rewrite(expr, OptiFloat.REWRITE_THEORY))
+    alt_exprs = recursive_rewrite(expr, theory)
+    alts = unique(mapreduce(alternatives, vcat, alt_exprs))
 
-    @info "Simplifying candidates"
-    all_improved = map(new_candidates) do newc
-        simplified = simplify(newc, OptiFloat.SIMPLIFY_THEORY; steps=3)
-    end |> unique
-
-    @info "Reconstruct with simplified candidates"
-    all_simplified =
-        map(all_improved) do improved
-            rewrite = Postwalk(PassThrough(x -> x == expr ? improved : nothing))
-            e = rewrite(candidate.toexpr(candidate.cand_expr.tree))
-            simplify(e, OptiFloat.SIMPLIFY_THEORY; steps=3)
-        end |> unique
+    # TODO: re-substitute rewritten expression!!!
 
     # TODO: Jaques Carrett knows about unsound rules e.g. to deal with
     #  :(((4.0c) / (b + sqrt(b ^ 2.0 - 4.0c))) / (2.0c)) division by zero
 
     new_cs = Any[]
-    for simpl in all_simplified
-        expr = candidate.cand_expr
-        new_dexpr = parse_expression(
-            simpl;
-            binary_operators=expr.metadata.operators.binops |> collect,
-            unary_operators=expr.metadata.operators.unaops |> collect,
-            variable_names=expr.metadata.variable_names,
+    for alt in alts
+        metadata = candidate.cand_expr.metadata
+        new_dexpr = parse_expression(alt;
+            binary_operators=metadata.operators.binops |> collect,
+            unary_operators=metadata.operators.unaops |> collect,
+            variable_names=metadata.variable_names,
             node_type=Node{T},
         )
         new_candidate = Candidate(new_dexpr, candidate.orig_expr, points)
