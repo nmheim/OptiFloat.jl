@@ -1,5 +1,6 @@
-using Metatheory
 using DynamicExpressions
+using Metatheory
+using Metatheory.Rewriters
 using OptiFloat
 using OptiFloat:
     all_subexpressions,
@@ -38,19 +39,26 @@ candidates = [Candidate(dexpr, dexpr, points)]
 
     @info "Recursive rewrite to obtain new candidate expressions"
     # expr = candidate.toexpr(worst_expr)
-    new_candidates = recursive_rewrite(dexpr, OptiFloat.REWRITE_THEORY)
+    new_candidates = recursive_rewrite(dexpr, OptiFloat.REWRITE_THEORY; depth=2)
 
+    Metatheory.EGraphs._get_metadata(::Type{<:Expression}) =
+        DynamicExpressions.ExpressionModule.Metadata((;
+            operators=DynamicExpressions.OperatorEnumConstructionModule.LATEST_OPERATORS[],
+            variable_names=DynamicExpressions.OperatorEnumConstructionModule.LATEST_VARIABLE_NAMES[],
+        ))
+        
     @info "Simplifying candidates"
     all_improved = map(new_candidates) do newc
-        simplified = simplify(newc, OptiFloat.SIMPLIFY_THEORY; steps=3)
+        simplified = simplify(newc, OptiFloat.SIMPLIFY_THEORY; steps=1)
     end |> unique
 
+    $ TODO: only rewrite CHILDREN OF MOST RECENTLY REWRITTEN OPERATION!!!
     @info "Reconstruct with simplified candidates"
     all_simplified =
         map(all_improved) do improved
-            rewrite = Postwalk(PassThrough(x -> x == expr ? improved : nothing))
+            rewrite = Postwalk(PassThrough(x -> x == dexpr ? improved : nothing))
             e = rewrite(candidate.toexpr(candidate.cand_expr.tree))
-            simplify(e, OptiFloat.SIMPLIFY_THEORY; steps=3)
+            simplify(e, OptiFloat.SIMPLIFY_THEORY; steps=1)
         end |> unique
 
     # TODO: Jaques Carrett knows about unsound rules e.g. to deal with

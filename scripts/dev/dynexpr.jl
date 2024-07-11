@@ -1,6 +1,6 @@
 using DynamicExpressions
 using OptiFloat
-
+using OptiFloat: simplify
 
 using Metatheory
 
@@ -20,3 +20,5 @@ g = EGraph(ex)
 g = EGraph(e)
 saturate!(g, OptiFloat.SIMPLIFY_THEORY)
 extract!(g, astsize)
+simplify(ex, OptiFloat.REWRITE_THEORY)
+simplify(ex, OptiFloat.SIMPLIFY_THEORY)

@@ -142,11 +142,11 @@ theories = (;
     #   @rule "mul-abs" a b (abs(a)*abs(b)) --> abs((a*b))
     #   @rule "div-abs" a b (abs(a)/abs(b)) --> abs((a/b))
     #],
-    #squares_transform_sound = [
-    #   @rule "sqrt-pow2" y x (sqrt(x)^y) --> (x^(y/2))
-    #   @rule "sqrt-unprod" y x (sqrt(x)*sqrt(y)) --> sqrt((x*y))
-    #   @rule "sqrt-undiv" y x (sqrt(x)/sqrt(y)) --> sqrt((x/y))
-    #],
+    squares_transform_sound = [
+       @rule "sqrt-pow2" y x (sqrt(x)^y) --> (x^(y/2))
+       @rule "sqrt-unprod" y x (sqrt(x)*sqrt(y)) --> sqrt((x*y))
+       @rule "sqrt-undiv" y x (sqrt(x)/sqrt(y)) --> sqrt((x/y))
+    ],
     squares_transform=[
         @rule "sqrt-pow1" y x sqrt((x^y)) --> (x^(y / 2))
         @rule "sqrt-prod" y x sqrt((x * y)) --> (sqrt(x) * sqrt(y))

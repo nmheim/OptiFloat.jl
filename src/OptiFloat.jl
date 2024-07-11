@@ -17,23 +17,23 @@ include("evaluate.jl")
 include("error.jl")
 include("rules.jl")
 
-function rewrite_once(expr, theory)
+function rewrite_once(expr, theory; kws...)
     unique(vcat([expr], map(rule -> PassThrough(rule)(expr), theory)))
 end
 #rewrite_once(expr, theory) = vcat([expr], map(rule -> PassThrough(rule)(expr), theory))
 
-function recursive_rewrite(expr::E, theory, depth=3) where E
+function recursive_rewrite(expr::E, theory; depth=3) where E
     if iscall(expr) && depth > 0
         op = operation(expr)
         # rewrite all arguments to op
-        argss = [recursive_rewrite(a, theory, depth - 1) for a in arguments(expr)]
+        argss = [recursive_rewrite(a, theory; depth=depth - 1) for a in arguments(expr)]
         # all combinations of rewritten arguments
         argss = Iterators.product(argss...)
         # rewrite op itself
         rwo = if expr isa Expr  # FIXME: uglyyyy
-            [rewrite_once(maketerm(E, :call, (op, args...), nothing), theory) for args in argss]
+            [rewrite_once(maketerm(E, :call, (op, args...), nothing), theory; depth=depth) for args in argss]
         else
-            [rewrite_once(maketerm(E, op, collect(args), nothing), theory) for args in argss]
+            [rewrite_once(maketerm(E, op, collect(args), nothing), theory; depth=depth) for args in argss]
         end
         reduce(vcat, rwo)
     else
