@@ -20,15 +20,32 @@ using OptiFloat:
 # FIXME: sort vector of candidates by mean error
 
 T = Float16
-orig_expr = :((-b - sqrt(b^2 - 4 * c)) / (2 * c))
+#neg(x) = -x
+#Base.sqrt(x::Array) = sqrt.(x)
+#Base.:^(x::Array, n) = x .^ n
+ops = OperatorEnum(; binary_operators=[-, ^, /, *, +], unary_operators=[-,sqrt,cbrt,log,exp])
+#ops = GenericOperatorEnum(; binary_operators=[-, ^, /, *, +], unary_operators=[neg, sqrt])
+#@extend_operators ops
 kws = (;
-    binary_operators=[-, ^, /, *, +],
-    unary_operators=[-, sqrt],
-    node_type=Node{T},
+    operators=ops,
     variable_names=["b", "c"],
 )
-dexpr = parse_expression(orig_expr; kws...)
-#points = sample_bitpattern(dexpr, T, 2, 8000)
-points = logsample(dexpr, T, 2, 8000, eval_exact=false)
+b = Node{T}(feature=1)
+c = Node{T}(feature=2)
+dexpr = Expression((-1b - sqrt(b^2 - 4c)) / (2c); kws...)
+#dexpr = Expression(neg(b) - sqrt(b - 4 * c); kws...)
+#dexpr = Expression(sqrt(b+c)^2; kws...)
+#dexpr(rand(2,5))
+#kws = (;
+#    binary_operators=[-, ^, /, *, +],
+#    unary_operators=[-, sqrt],
+#    node_type=Node{T},
+#    variable_names=["b", "c"],
+#)
+#dexpr = parse_expression(orig_expr; kws...)
+batchsize=10000
+#points = sample_bitpattern(dexpr, T, 2, batchsize)
+points = logsample(dexpr, T, 2, batchsize, eval_exact=false)
+#points = logsample(dexpr, T, 2, batchsize, eval_exact=true)
 candidates = [Candidate(dexpr, dexpr, points)]
 optifloat!(candidates, points)

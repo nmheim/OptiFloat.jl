@@ -75,6 +75,13 @@ function optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T
     alts = unique(mapreduce(alternatives, vcat, alt_exprs))
 
     # TODO: re-substitute rewritten expression!!!
+    @info "Reconstruct with simplified candidates"
+    all_simplified =
+        map(all_improved) do improved
+            rewrite = Postwalk(PassThrough(x -> x == expr ? improved : nothing))
+            e = rewrite(candidate.toexpr(candidate.cand_expr.tree))
+            simplify(e, OptiFloat.SIMPLIFY_THEORY; steps=3)
+        end |> unique
 
     # TODO: Jaques Carrett knows about unsound rules e.g. to deal with
     #  :(((4.0c) / (b + sqrt(b ^ 2.0 - 4.0c))) / (2.0c)) division by zero
