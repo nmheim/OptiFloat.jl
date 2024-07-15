@@ -11,8 +11,8 @@ using OptiFloat: recursive_rewrite, REWRITE_THEORY, rewrite_once, simplify, alte
 
     # julia expression
     expr = :(1/x - y/z)
-    rewritten_expr = :((1z - (x*y))/(x*z))
-    rws = rewrite_once(expr, theory)
+    rewritten_expr = :((z - (x*y))/(z*x))
+    rws = alternatives(rewrite_once(expr, theory))
     @test all(rws .== [expr, rewritten_expr])
 
     # dynamic expression
@@ -35,11 +35,11 @@ end
     expr = :((a/b - c/d) + 1/f)
     rws = [
      expr
-     :((a * d - b * c) / (b * d) + 1 / f)
-     :(((a * d - b * c) * f + (b * d) * 1) / ((b * d) * f))
+     :((a * d - b * c) / (d * b) + 1 / f)
+     :(((a * d - b * c) * f + (d * b)) / ((d * f) * b))
     ]
 
-    for (target, result) in zip(rws, recursive_rewrite(expr, theory))
+    for (target, result) in zip(rws, recursive_rewrite(expr; rewrite_theory=theory))
         @test target == result
     end
 
@@ -52,13 +52,14 @@ end
     # end
 end
 
-#@testset "alternatives" begin
+@testset "alternatives" begin
     theory = @theory a b begin
         a - b --> (a^2 - b^2) / (a + b)
     end
 
     original = :((x - sqrt(x^2 - 4y)) / (2y))
-    alts = recursive_rewrite(original; depth=2)
-    cnds = mapreduce(alternatives, vcat, alts)
-#end
+    target =  :(((4y) / (sqrt(x ^ 2 - 4y) + x)) / (2y))
+    alts = recursive_rewrite(original; depth=2, rewrite_theory=theory)
+    @test target in alts
+end
 
