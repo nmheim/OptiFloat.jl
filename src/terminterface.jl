@@ -68,9 +68,15 @@ end
 
 TermInterface.isexpr(e::Expression) = isexpr(e.tree)
 TermInterface.iscall(e::Expression) = iscall(e.tree)
-TermInterface.arity(e::Expression) = convert(Int, e.tree.degree)
 TermInterface.operation(e::Expression) = head(e)
 TermInterface.arguments(e::Expression) = children(e)
+function TermInterface.arity(e::Expression)
+    mapreduce(union, e.tree) do n
+        # returns indices that are larger than variable_names?
+        f = Int(n.feature)
+        checkbounds(Bool, e.metadata.variable_names, f) ? Set(f) : Set{Int}()
+    end |> length
+end
 
 function TermInterface.head(e::Expression)
     if isexpr(e)
