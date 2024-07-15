@@ -67,8 +67,8 @@ function evaluate_approx(tree::Node, ops::AbstractOperatorEnum, xs::AbstractMatr
     map(x -> evaluate_approx(tree, ops, x), eachcol(xs))
 end
 
-struct Regime{T,V<:Union{<:AbstractVector{T},Tuple{T,Int}},I<:Union{Int,Nothing}}
-    expr::Expression{T}
+struct Regime{T<:AbstractFloat,C<:Candidate,V<:Union{<:AbstractVector{T},Tuple{T,Int}},I<:Union{Int,Nothing}}
+    cand::C
     low::V
     high::V
     "low index"
@@ -82,7 +82,7 @@ Regime(expr, low::Number, high::Number) = Regime(expr, [low], [high], nothing, n
 struct Regimes{A<:AbstractVector{<:Regime}}
     regs::A
 end
-Regimes(rs::Tuple{E,A,B}...) where {A,B,E<:Expression} = Regimes([Regime(args...) for args in rs])
+Regimes(rs::Tuple...) = Regimes([Regime(args...) for args in rs])
 
 lowleft(x::AbstractVector, y::AbstractVector) = all(x .< y)
 function lowleft(x::AbstractVector, y::Tuple{T,Int}) where {T}
@@ -120,7 +120,7 @@ Base.contains(rs::Regimes, x::AbstractVector) = any(contains(r, x) for r in rs.r
 function evaluate_approx(regs::Regimes, x::AbstractVector)
     for regime in regs.regs
         if contains(regime, x)
-            return evaluate_approx(regime.expr, x)
+            return evaluate_approx(regime.cand.cand_expr, x)
         end
     end
     error("No applicable regime.")
@@ -128,13 +128,18 @@ end
 function evaluate_approx(regs::Regimes, ops::AbstractOperatorEnum, x::AbstractVector)
     for regime in regs.regs
         if contains(regime, x)
-            return evaluate_approx(regime.expr.tree, ops, x)
+            return evaluate_approx(regime.cand.cand_expr.tree, ops, x)
         end
     end
     error("No applicable regime.")
 end
 function evaluate_approx(regimes::Regimes, X::AbstractMatrix; kw...)
     map(c -> evaluate_approx(regimes, c), eachcol(X))
+    #xs = eachcol(X)
+    #Xs = map(reg.regs) do reg
+    #    filter(p -> contains(reg, p), xs)
+    #end
+
 end
 
 Base.join(a::Regimes, b::Regimes) = Regimes(vcat(a.regs, b.regs))
@@ -143,9 +148,9 @@ function Base.show(io::IO, rs::Regimes{A}) where {A}
     println(io, "Regimes:")
     for (i, r) in enumerate(rs.regs)
         if i == length(rs.regs)
-            print(io, "  ($(r.low), $(r.high))   : $(string_tree(r.expr))")
+            print(io, "  ($(r.low), $(r.high))   : $(string_tree(r.cand.cand_expr))")
         else
-            println(io, "  ($(r.low), $(r.high))   : $(string_tree(r.expr))")
+            println(io, "  ($(r.low), $(r.high))   : $(string_tree(r.cand.cand_expr))")
         end
     end
 end
@@ -154,7 +159,7 @@ function evaluate_exact(regimes::Regimes, x::AbstractVector; kw...)
     @assert size(x, 1) == 1
     for regime in regimes.regs
         if contains(regime, x)
-            return evaluate_exact(regime.expr, x; kw...)
+            return evaluate_exact(regime.cand.expr, x; kw...)
         end
     end
     error("No applicable regime.")
