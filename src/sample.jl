@@ -1,7 +1,6 @@
 function logsample(expr::Expression, args...; eval_exact=true)
     tree = expr.tree
     ops = expr.metadata.operators
-    display(args)
     if eval_exact
         logsample(x -> evaluate_exact(tree, ops, x), args...)
     else
