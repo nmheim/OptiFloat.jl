@@ -54,8 +54,12 @@ function biterror(orig, target, ops::AbstractOperatorEnum, X::AbstractMatrix{T};
     #end |> accum
     map(x -> biterror(orig, target, ops, x), eachcol(X)) |> vec |> accum
 end
-function biterror(reg::Regimes, target::Expression, X::AbstractArray; kw...)
-    biterror(reg, target.tree, target.metadata.operators, X; kw...)
+function biterror(reg::Regimes, X::AbstractArray; kw...)
+    mapreduce(vcat, reg.regs) do r
+        mask = [contains(r,p) for p in eachcol(X)]
+        r.cand.errors[mask,:]
+    end |> mean
+    # biterror(reg, target.tree, target.metadata.operators, X; kw...)
 end
 function biterror(expr::Expression, target::Expression, X::AbstractArray; kw...)
     biterror(expr.tree, target.tree, expr.metadata.operators, X; kw...)
