@@ -11,22 +11,6 @@ using Metatheory.Rewriters: PassThrough, Postwalk
 # FIXME: type piracy
 Base.isfinite(x::Interval) = isbounded(x)
 
-include("rules-minus.jl")
-include("rewrite.jl")
-include("terminterface.jl")
-include("sample.jl")
-include("evaluate.jl")
-include("error.jl")
-
-
-replace_syms(s, syms::Dict) = haskey(syms, s) ? syms[s] : s
-function replace_syms(expr::Expr, syms::Dict)
-    cs = [replace_syms(e, syms) for e in children(expr)]
-    maketerm(Expr, head(expr), cs, nothing)
-end
-
-toexpr(e::Node, symbol_map) = replace_syms(Meta.parse(repr(e)), symbol_map)
-
 struct Candidate{E<:Expression,A<:AbstractArray,F<:Function}
     cand_expr::E
     orig_expr::E
@@ -50,6 +34,24 @@ function Base.show(io::IO, c::Candidate)
     print(io, "$u E=$(e) : $(string_tree(c.cand_expr))")
 end
 
+
+
+include("rules-minus.jl")
+include("rewrite.jl")
+include("terminterface.jl")
+include("sample.jl")
+include("evaluate.jl")
+include("error.jl")
+include("infer-regimes.jl")
+
+replace_syms(s, syms::Dict) = haskey(syms, s) ? syms[s] : s
+function replace_syms(expr::Expr, syms::Dict)
+    cs = [replace_syms(e, syms) for e in children(expr)]
+    maketerm(Expr, head(expr), cs, nothing)
+end
+
+toexpr(e::Node, symbol_map) = replace_syms(Meta.parse(repr(e)), symbol_map)
+
 function first_unused(candidates)
     for c in candidates
         if !(c.used[])
@@ -71,23 +73,20 @@ function optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T
 
     @info "Recursive rewrite to obtain new candidate expressions"
     expr = candidate.toexpr(worst_expr)
-    alt_exprs = recursive_rewrite(expr, theory)
-    alts = unique(mapreduce(alternatives, vcat, alt_exprs))
+    alts = recursive_rewrite(expr; depth=2)
 
-    # TODO: re-substitute rewritten expression!!!
     @info "Reconstruct with simplified candidates"
-    all_simplified =
-        map(all_improved) do improved
-            rewrite = Postwalk(PassThrough(x -> x == expr ? improved : nothing))
-            e = rewrite(candidate.toexpr(candidate.cand_expr.tree))
-            simplify(e, OptiFloat.SIMPLIFY_THEORY; steps=3)
-        end |> unique
+    reconstructed = map(alts) do alt
+        reconstruct = Postwalk(PassThrough(x -> x == expr ? alt : nothing))
+        reconstruct(candidate.toexpr(candidate.cand_expr.tree))
+    end
+    display(reconstructed)
 
     # TODO: Jaques Carrett knows about unsound rules e.g. to deal with
     #  :(((4.0c) / (b + sqrt(b ^ 2.0 - 4.0c))) / (2.0c)) division by zero
 
     new_cs = Any[]
-    for alt in alts
+    for alt in reconstructed
         metadata = candidate.cand_expr.metadata
         new_dexpr = parse_expression(alt;
             binary_operators=metadata.operators.binops |> collect,
@@ -96,6 +95,7 @@ function optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T
             node_type=Node{T},
         )
         new_candidate = Candidate(new_dexpr, candidate.orig_expr, points)
+        @info new_candidate
         if any([any(new_candidate.errors .< c.errors) for c in candidates])
             push!(new_cs, new_candidate)
         end
@@ -104,6 +104,7 @@ function optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T
     append!(candidates, new_cs)
     unique!(candidates)
     candidate.used[] = true
+    sort!(candidates, by=c->mean(convert(Vector{BigFloat}, c.errors)))
     display(candidates)
 
     @info "TODO: regime inference"
