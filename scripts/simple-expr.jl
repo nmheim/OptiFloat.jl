@@ -20,7 +20,7 @@ kws = (;
     variable_names=["x"],
 )
 dexpr = parse_expression(orig_expr; kws...)
-points = logsample(dexpr, T, arity(dexpr), 8000, eval_exact=false)
+points = logsample(dexpr, 8000, eval_exact=false)
 candidates = [Candidate(dexpr, dexpr, points)]
 optifloat!(candidates, points)
 

@@ -61,10 +61,10 @@ function evaluate_approx(expr::Expression, x::AbstractArray)
     evaluate_approx(expr.tree, expr.metadata.operators, x)
 end
 function evaluate_approx(tree::Node, ops::AbstractOperatorEnum, x::AbstractVector)
-    tree(reshape(x, :, 1), ops) |> only
+    only(evaluate_approx(tree, ops, reshape(x, :, 1)))
 end
 function evaluate_approx(tree::Node, ops::AbstractOperatorEnum, xs::AbstractMatrix)
-    map(x -> evaluate_approx(tree, ops, x), eachcol(xs))
+    tree(xs, ops; options=EvaluationOptions(early_exit=false))
 end
 
 struct Regime{T<:AbstractFloat,C<:Candidate,V<:Union{<:AbstractVector{T},Tuple{T,Int}},I<:Union{Int,Nothing}}

@@ -1,10 +1,13 @@
-function logsample(expr::Expression, args...; eval_exact=true)
+node_eltype(::Node{T}) where T = T
+node_eltype(::Expression{T}) where T = T
+function logsample(expr::Expression, batchsize::Int; eval_exact=true)
     tree = expr.tree
     ops = expr.metadata.operators
+    T = node_eltype(expr)
     if eval_exact
-        logsample(x -> evaluate_exact(tree, ops, x), args...)
+        logsample(x -> evaluate_exact(expr, x), T, arity(expr), batchsize)
     else
-        logsample(x -> evaluate_approx(tree, ops, x), args...)
+        logsample(x -> evaluate_approx(expr, x), T, arity(expr), batchsize)
     end
 end
 function logsample(testfn::Function, T::Type, inputsize::Int, batchsize::Int)
