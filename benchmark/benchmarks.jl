@@ -1,3 +1,6 @@
+using Pkg
+Pkg.status()
+
 using BenchmarkTools
 using DynamicExpressions: Node, parse_expression
 using OptiFloat: evaluate_approx, evaluate_exact, biterror, logsample
