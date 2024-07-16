@@ -9,4 +9,5 @@ TestItems = "1c621080-faea-4a02-84b6-bbd5e436b8fe"
 
 [sources]
 Metatheory = {rev = "ale/3.0", url = "https://github.com/JuliaSymbolics/Metatheory.jl"}
+DynamicExpressions = {url = "https://github.com/nmheim/DynamicExpressions.jl", rev="nh/early-exit"}
 OptiFloat = {path = "../"}
