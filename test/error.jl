@@ -66,5 +66,5 @@ end
     points = logsample(dexpr, T, 2, 8000; eval_exact=false)
     local_biterrors(dexpr, points)
     c = Candidate(dexpr, dexpr, points)
-    isfinite(sum(c.errors))
+    @test isfinite(sum(c.errors))
 end
