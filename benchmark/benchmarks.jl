@@ -1,9 +1,3 @@
-using Pkg
-Pkg.update()
-Pkg.add(url = "https://github.com/JuliaSymbolics/Metatheory.jl", rev="ale/3.0")
-Pkg.add(url = "https://github.com/nmheim/DynamicExpressions.jl", rev="nh/early-exit")
-Pkg.dev(path = "..")
-
 using BenchmarkTools
 using DynamicExpressions: Node, parse_expression
 using OptiFloat: evaluate_approx, evaluate_exact, biterror, logsample
