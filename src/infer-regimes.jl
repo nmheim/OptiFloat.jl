@@ -26,7 +26,7 @@ plus_infsplit(::T, index::Int) where {T} = (T(Inf), index)
 plus_infsplit(s::Tuple) = plus_infsplit(s...)
 
 function infer_regimes(
-    original::Expression{T}, candidates::Vector{<:Candidate}, splits::Vector{<:Vector}, points; last_point=plus_infsplit(splits[1])
+    candidates::Vector{<:Candidate}, splits::Vector{<:Vector}, points; last_point=plus_infsplit(splits[1])
 ) where {T}
     _best_candidate(low, high) = best_candidate(candidates, points, low, high)[2]
     _biterror(regimes::Regimes) = biterror(regimes, points)
@@ -40,7 +40,6 @@ function infer_regimes(
 
     new_best_split = map(enumerate(splits)) do (i, x)
         options = map(enumerate(splits[i:end])) do (j, y)
-            @info "adsf" OptiFloat.lowleft(x, y)
             if OptiFloat.lowleft(x, y)
                 extra_regime = Regime(_best_candidate(y, x), y, x, j, i)
                 join(best_split[i], extra_regime)

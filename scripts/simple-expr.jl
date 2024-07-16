@@ -33,13 +33,7 @@ splits = [
     T[10],
     T[100],
 ]
-rs = infer_regimes(dexpr, candidates, splits, points)
+rs = infer_regimes(candidates, splits, points)
 better = regimes_to_expr_1d(rs)
 b = eval(Expr(:->, :x, better))
-
-
-cs = [candidates[1], candidates[8]]
-#OptiFloat.best_candidate(candidates[1:20], points, T[-Inf], T[0])
-OptiFloat.best_candidate(cs, points, T[-Inf], T[0])
-@btime OptiFloat.best_candidate($cs, $points, T[-Inf], T[0])
-@profview OptiFloat.best_candidate(candidates[1:20], points, T[-Inf], T[0])
+b(100.0)
