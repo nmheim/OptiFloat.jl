@@ -1,7 +1,7 @@
 using DynamicExpressions: Expression, Node, AbstractOperatorEnum
 
-function evaluate_exact(expr::Expression{T}, x::AbstractArray{T}) where {T}
-    evaluate_exact(expr.tree, expr.metadata.operators, x)
+function evaluate_exact(expr::Expression{T}, x::AbstractArray{T}; kws...) where {T}
+    evaluate_exact(expr.tree, expr.metadata.operators, x; kws...)
 end
 
 function evaluate_exact(
@@ -22,6 +22,7 @@ function evaluate_exact(
             mid.(precision_intervals)
         end
     else
+        # @info "eval exact" sum(isthin.(precision_intervals)) new_precision
         evaluate_exact(tree, ops, X; init_precision=new_precision, max_precision=max_precision)
     end
 end

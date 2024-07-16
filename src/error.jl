@@ -37,22 +37,19 @@ function biterror(orig, target, ops::AbstractOperatorEnum, x::AbstractVector{T})
 end
 
 function biterror(orig, target, ops::AbstractOperatorEnum, X::AbstractMatrix{T}; accum=mean) where {T}
-    #y_exact = evaluate_exact(target, ops, X)
-    #y_approx = try
-    #    evaluate_approx(expr, ops, X)
-    #catch e
-    #    if e isa DomainError
-    #        T(NaN)
-    #    else
-    #        rethrow(e)
-    #    end
-    #end
-
-    #map(zip(y_approx, y_exact)) do (ya, ye)
-    #    ulp = ulpdistance(ya, convert(T,ye))
-    #    T(ulp==0 ? 0 : log2(ulp))
-    #end |> accum
-    map(x -> biterror(orig, target, ops, x), eachcol(X)) |> vec |> accum
+    errs = try
+        y_approx = evaluate_approx(orig, ops, X)
+        y_exact = evaluate_exact(target, ops, X; init_precision=800)
+        biterror.(y_approx, convert(Vector{T}, y_exact))
+    catch e
+        if e isa DomainError
+            @info "Assigning maximal error to $orig because of DomainError"
+            fill(log2(floatmax(T)), size(X,2))
+        else
+            rethrow(e)
+        end
+    end
+    accum(errs)
 end
 function biterror(reg::Regimes, X::AbstractArray; kw...)
     mapreduce(vcat, reg.regs) do r

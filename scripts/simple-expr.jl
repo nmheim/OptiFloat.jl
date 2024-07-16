@@ -34,6 +34,7 @@ splits = [
     T[100],
 ]
 rs = infer_regimes(candidates, splits, points)
+display(rs)
 better = regimes_to_expr_1d(rs)
 b = eval(Expr(:->, :x, better))
 b(100.0)
