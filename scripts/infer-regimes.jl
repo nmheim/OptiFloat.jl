@@ -1,4 +1,4 @@
-using OptiFloat: biterror, sample_bitpattern, Regimes, evaluate_exact, evaluate_approx, Regime
+using OptiFloat: biterror, sample_bitpattern, PiecewiseRegime, evaluate_exact, evaluate_approx, Regime
 using DynamicExpressions
 using OrderedCollections: OrderedDict
 
@@ -9,7 +9,7 @@ function infer_regimes(original::Node{T}, ops, candidates, splits, points) where
         findmin(d)[2]
     end
 
-    function _biterror(regimes::Regimes)
+    function _biterror(regimes::PiecewiseRegime)
         high = maximum(r.high for r in regimes.regs)
         low = minimum(r.low for r in regimes.regs)
         xs = reduce(hcat, filter(col -> low < col[1] <= high, points))
@@ -25,7 +25,7 @@ function infer_regimes(original::Node{T}, ops, candidates, splits, points) where
     best_split = map(enumerate(splits)) do (i, x)
         expr = best_candidate(T(-Inf), x)
         reg = Regime(expr, T(-Inf), x, 0, i)
-        Regimes([reg])
+        PiecewiseRegime([reg])
     end
     @info best_split _biterror.(best_split)
 
@@ -51,14 +51,14 @@ function infer_regimes(original::Node{T}, ops, candidates, splits, points) where
         high = maximum(r.high for r in regimes.regs)
         expr = best_candidate(high, input_range[2])
         r = Regime(expr, high, input_range[2], nothing, nothing)
-        rs = Regimes(vcat(regimes.regs, [r]))
+        rs = PiecewiseRegime(vcat(regimes.regs, [r]))
         @info "full" rs _biterror(rs)
         rs
     end
 
     _, regs = lowest_error(full_range_split)
-    display(_biterror(Regimes(regs.regs[2:2])))
-    display(_biterror(Regimes(regs.regs[1:1])))
+    display(_biterror(PiecewiseRegime(regs.regs[2:2])))
+    display(_biterror(PiecewiseRegime(regs.regs[1:1])))
     display(_biterror(regs))
     regs
 end

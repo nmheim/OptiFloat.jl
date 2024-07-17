@@ -2,7 +2,7 @@ using OptiFloat
 using OptiFloat:
     biterror,
     sample_bitpattern,
-    Regimes,
+    PiecewiseRegime,
     evaluate_exact,
     evaluate_approx,
     Regime,
@@ -12,56 +12,39 @@ using OptiFloat:
 using DynamicExpressions
 using OrderedCollections: OrderedDict
 
-function best_candidate(candidates, points, low, high)
-    mask = [contains(low, p, high) for p in eachcol(points)]
-    d = OrderedDict(c => mean(c.errors[mask, :]) for c in candidates)
-    findmin(d)
+
+function regimes(candidates, points, low, high, feature)
+    mask = [low < p[feature] <= high for p in eachcol(points)]
+    [Regime(c, low, high, feature, mask) for c in candidates]
 end
 
-minus_infsplit(s::Vector{T}) where {T} = -fill(T(Inf), length(s))
-minus_infsplit(::T, index::Int) where {T} = (T(-Inf), index)
-minus_infsplit(s::Tuple) = minus_infsplit(s...)
-plus_infsplit(s::Vector{T}) where {T} = fill(T(Inf), length(s))
-plus_infsplit(::T, index::Int) where {T} = (T(Inf), index)
-plus_infsplit(s::Tuple) = plus_infsplit(s...)
-
 function infer_regimes(
-    candidates::Vector{<:Candidate},
-    splits::Vector{<:Vector},
-    points;
-    last_point=plus_infsplit(splits[1]),
-)
-    _best_candidate(low, high) = best_candidate(candidates, points, low, high)[2]
-    _biterror(regimes::Regimes) = biterror(regimes, points)
-    lowest_error(options::Vector) = findmin(Dict(r => _biterror(r) for r in options))
-
-    inf = minus_infsplit(splits[1])
-    best_split = map(enumerate(splits)) do (i, x)
-        cand = _best_candidate(inf, x)
-        Regimes((cand, inf, x, 0, i))
+    candidates::Union{Vector{<:Candidate}, Vector{<:Regime}},
+    splits::Vector{<:Number},
+    feature::Int,
+    points::Matrix{T};
+    supremum=T(Inf),
+) where T
+    function _best_regime(low, high)
+        rs = regimes(candidates, points, low, high, feature)
+        d = OrderedDict(r=>biterror(r) for r in rs)
+        findmin(d)[2]
     end
+    lowest_error(options::Vector) = findmin(OrderedDict(r => biterror(r) for r in options))
 
-    new_best_split = map(enumerate(splits)) do (i, x)
-        options = map(enumerate(splits[i:end])) do (j, y)
-            if OptiFloat.lowleft(x, y)
-                extra_regime = Regime(_best_candidate(y, x), y, x, j, i)
-                join(best_split[i], extra_regime)
-            else
-                best_split[i]
-            end
+    best_split = [PiecewiseRegime([_best_regime(T(-Inf), x)]) for x in splits]
+
+    new_best_split = map(enumerate(splits)) do (i,x)
+        options = map(splits[i:end]) do y
+            x<y ? join(best_split[i], _best_regime(x,y)) : best_split[i]
         end
         _, best_option = lowest_error(options)
-        if _biterror(best_option) + 1 < _biterror(best_split[i])
-            best_option
-        else
-            best_split[i]
-        end
+        biterror(best_option)+1 < biterror(best_split[i]) ? best_option : best_split[i]
     end
 
     full_range_split = map(new_best_split) do regimes
         high = maximum(r.high for r in regimes.regs)
-        cand = _best_candidate(high, last_point)
-        r = Regime(cand, high, last_point, nothing, nothing)
+        r = _best_regime(high, supremum)
         join(regimes, r)
     end
 
@@ -69,7 +52,7 @@ function infer_regimes(
     return regs
 end
 
-function regimes_to_expr_1d(rs::Regimes)
+function regimes_to_expr_1d(rs::PiecewiseRegime)
     ifs = map(rs.regs) do r
         # FIXME: find better way of getting expression string to make sure
         # floats like 1.0 are actualy floats of expression type T

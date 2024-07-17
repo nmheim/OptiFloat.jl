@@ -22,4 +22,12 @@ end
     include("error.jl")
 end
 
+@testitem "simplify.jl" begin
+    include("simplify.jl")
+end
+
+@testitem "infer-regimes.jl" begin
+    include("infer-regimes.jl")
+end
+
 @run_package_tests verbose = true

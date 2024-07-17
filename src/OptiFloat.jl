@@ -33,6 +33,56 @@ function Base.show(io::IO, c::Candidate)
     e = convert(eltype(c.errors), mean(convert(Vector{BigFloat}, c.errors)))
     print(io, "$u E=$(e) : $(string_tree(c.cand_expr))")
 end
+DynamicExpressions.string_tree(r::Candidate) = string_tree(r.cand_expr)
+
+biterror(c::Candidate; accum=mean) = accum(c.errors)
+
+struct Regime{T<:AbstractFloat,C,V<:AbstractVector}
+    cand::C
+    low::T
+    high::T
+    feature::Int
+    error_mask::V
+end
+DynamicExpressions.string_tree(r::Regime) = string_tree(r.cand)
+function Base.show(io::IO, r::Regime)
+    println(io, "($(r.low),$(r.high); f=$(r.feature)) : $(string_tree(r))")
+end
+
+function biterror(r::Regime; accum=mean)
+    errs = biterror(r.cand, accum=identity)
+    errs = errs[r.error_mask]
+    accum(errs)
+end
+
+struct PiecewiseRegime{A<:AbstractVector{<:Regime}}
+    regs::A
+end
+function PiecewiseRegime(rs::Tuple...)
+    regs = [Regime(args...) for args in rs]
+    @assert all(sum([r.error_mask for r in regs]) .== 1)
+    PiecewiseRegime(regs)
+end
+Base.join(a::PiecewiseRegime, b::PiecewiseRegime) = PiecewiseRegime(vcat(a.regs, b.regs))
+Base.join(a::PiecewiseRegime, r::Regime) = PiecewiseRegime(vcat(a.regs, [r]))
+function Base.show(io::IO, rs::PiecewiseRegime{A}) where {A}
+    println(io, "PiecewiseRegime:")
+    for r in rs.regs
+        print(io, " " * repr(r))
+    end
+end
+
+function biterror(rs::PiecewiseRegime; accum=mean)
+    # get first full error array
+    errs = copy(biterror(rs.regs[1].cand, accum=identity))
+    # fill with errors from other regimes
+    for regime in rs.regs
+        errs[regime.error_mask] .= biterror(regime, accum=identity)
+    end
+    accum(errs)
+end
+
+
 
 include("rules-minus.jl")
 include("rewrite.jl")
