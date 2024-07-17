@@ -40,6 +40,7 @@ function biterror(orig, target, ops::AbstractOperatorEnum, X::AbstractMatrix{T};
     errs = try
         y_approx = evaluate_approx(orig, ops, X)
         y_exact = evaluate_exact(target, ops, X; init_precision=800)
+        # @info "biterror" y_approx y_exact
         biterror.(y_approx, convert(Vector{T}, y_exact))
     catch e
         if e isa DomainError
@@ -116,6 +117,7 @@ function local_biterror(
     end
     # each BigFloat from evaluate_exact might have different precision
     exact_args = [evaluate_exact(a, ops, X) for a in arguments(tree)]
+    # @show exact_args
     prec = maximum_precision(exact_args)
 
     localf = tree.degree == 2 ? ops.binops[tree.op] : ops.unaops[tree.op]
@@ -124,7 +126,8 @@ function local_biterror(
     approx_result = localf.(approx_args...)
 
     exact_args = [BigFloat.(x, prec) for x in exact_args]
-    exact_result = evaluate_exact.(localf, exact_args...)
+    exact_result = evaluate_exact.(T, localf, exact_args...)
+    # @info localf exact_args exact_result approx_args approx_result
     bits = setprecision(prec) do
         map(zip(approx_result, exact_result)) do (ap, ex)
             biterror(ap, convert(T,ex))
