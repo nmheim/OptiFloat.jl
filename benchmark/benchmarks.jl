@@ -3,8 +3,6 @@ using DynamicExpressions: Node, parse_expression
 using OptiFloat: evaluate_approx, evaluate_exact, biterror, logsample
 const SUITE = BenchmarkGroup()
 
-SUITE["ParametricSpeciesDictUnion"] = BenchmarkGroup()
-
 T = Float16
 kws = (;
     binary_operators=[-, +, /, ^, *],
