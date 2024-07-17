@@ -30,7 +30,8 @@ end
     )
     dexpr = parse_expression(:(x1 + 1 - x1); kws...)
 
-    x = reshape(T[5e3 for _ in 1:100], 1, 100)
+    n = 3
+    x = reshape(T[5e3 for _ in 1:n], 1, n)
     e = local_biterror(dexpr, x)
     @test e ≈ T(log2(ulpdistance(T(0), T(1))))
 
@@ -44,7 +45,7 @@ end
         (a + 1) - a => round(Int, log2(ulpdistance(T(0), T(1)))),
         a => 0,
     )
-    @test target == Dict(k=>round(Int,v) for (k,v) in d)
+    @test target == Dict(k => round(Int, v) for (k, v) in d)
 
     # dexpr = parse_expression(:(sqrt(x1 + 1) - sqrt(x1)); kws...)
     # points = logsample(dexpr, T, arity, 8000)
@@ -63,7 +64,7 @@ end
         variable_names=["b", "c"],
     )
     dexpr = parse_expression(orig_expr; kws...)
-    points = logsample(dexpr, T, 2, 8000; eval_exact=false)
+    points = logsample(dexpr, 8000; eval_exact=false)
     local_biterrors(dexpr, points)
     c = Candidate(dexpr, dexpr, points)
     @test isfinite(sum(c.errors))

@@ -29,7 +29,13 @@ let
 
     a2 = Axis(f[1, 2]; xscale=log10, title="$e2", legend=true)
     scatter!(
-        a2, xs, evaluate(e2, ops, reshape(xs, 1, :)); color=1, colorrange=(1, 10), colormap=:tab10, label="asdf"
+        a2,
+        xs,
+        evaluate(e2, ops, reshape(xs, 1, :));
+        color=1,
+        colorrange=(1, 10),
+        colormap=:tab10,
+        label="asdf",
     )
     lines!(
         a2,

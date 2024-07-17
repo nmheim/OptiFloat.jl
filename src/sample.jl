@@ -1,10 +1,13 @@
-function logsample(expr::Expression, args...; eval_exact=true)
+node_eltype(::Node{T}) where {T} = T
+node_eltype(::Expression{T}) where {T} = T
+function logsample(expr::Expression, batchsize::Int; eval_exact=true)
     tree = expr.tree
     ops = expr.metadata.operators
+    T = node_eltype(expr)
     if eval_exact
-        logsample(x -> evaluate_exact(tree, ops, x), args...)
+        logsample(x -> evaluate_exact(expr, x), T, arity(expr), batchsize)
     else
-        logsample(x -> evaluate_approx(tree, ops, x), args...)
+        logsample(x -> evaluate_approx(expr, x), T, arity(expr), batchsize)
     end
 end
 function logsample(testfn::Function, T::Type, inputsize::Int, batchsize::Int)
@@ -21,7 +24,9 @@ x = samplefn(T, inputsize)
 y = testfn(x)  <-- add to samples if isfinite(y)
 ```
 """
-function sample_finite(samplefn::Function, testfn::Function, T::Type, inputsize::Int, batchsize::Int)
+function sample_finite(
+    samplefn::Function, testfn::Function, T::Type, inputsize::Int, batchsize::Int
+)
     samples = Vector{T}[]
     while length(samples) < batchsize
         x = samplefn(T, inputsize)
@@ -43,7 +48,9 @@ end
 function sample_bitpattern(expr::Expression, args...)
     sample_bitpattern(expr.tree, expr.metadata.operators, args...)
 end
-function sample_bitpattern(expr::Node, ops::AbstractOperatorEnum, T::Type, inputsize::Int, batchsize::Int)
+function sample_bitpattern(
+    expr::Node, ops::AbstractOperatorEnum, T::Type, inputsize::Int, batchsize::Int
+)
     testfn(x) = evaluate_exact(expr, ops, x)
     sample_finite(sample_bitpattern, testfn, T, inputsize, batchsize)
 end

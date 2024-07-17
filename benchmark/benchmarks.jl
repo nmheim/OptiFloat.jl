@@ -11,7 +11,7 @@ kws = (;
     variable_names=["x"],
 )
 expr = parse_expression(:(sqrt(x + 1) - sqrt(x)); kws...)
-xs = logsample(expr, T, 1, 10000)
+xs = logsample(expr, 10000)
 
 SUITE["evaluate_approx"] = @benchmarkable evaluate_approx($expr, $xs)
 SUITE["evaluate_exact"] = @benchmarkable evaluate_exact($expr, $xs)
