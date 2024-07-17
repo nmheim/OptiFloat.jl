@@ -34,8 +34,6 @@ function Base.show(io::IO, c::Candidate)
     print(io, "$u E=$(e) : $(string_tree(c.cand_expr))")
 end
 
-
-
 include("rules-minus.jl")
 include("rewrite.jl")
 include("terminterface.jl")
@@ -88,7 +86,8 @@ function optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T
     new_cs = Any[]
     for alt in reconstructed
         metadata = candidate.cand_expr.metadata
-        new_dexpr = parse_expression(alt;
+        new_dexpr = parse_expression(
+            alt;
             binary_operators=metadata.operators.binops |> collect,
             unary_operators=metadata.operators.unaops |> collect,
             variable_names=metadata.variable_names,
@@ -104,7 +103,7 @@ function optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T
     append!(candidates, new_cs)
     unique!(candidates)
     candidate.used[] = true
-    sort!(candidates, by=c->mean(convert(Vector{BigFloat}, c.errors)))
+    sort!(candidates; by=c -> mean(convert(Vector{BigFloat}, c.errors)))
     display(candidates)
 
     @info "TODO: regime inference"

@@ -16,8 +16,8 @@ function ulpdistance(a::F, b::F) where {F<:AbstractFloat}
     return abs(a_int - b_int)
 end
 
-function biterror(x::T, y::T) where T
-    ulp = ulpdistance(x,y)
+function biterror(x::T, y::T) where {T}
+    ulp = ulpdistance(x, y)
     T(ulp == 0 ? 0 : log2(ulp))
 end
 
@@ -36,28 +36,28 @@ function biterror(orig, target, ops::AbstractOperatorEnum, x::AbstractVector{T})
     biterror(y_approx, convert(T, y_exact))
 end
 
-function biterror(orig, target, ops::AbstractOperatorEnum, X::AbstractMatrix{T}; accum=mean) where {T}
-    #y_exact = evaluate_exact(target, ops, X)
-    #y_approx = try
-    #    evaluate_approx(expr, ops, X)
-    #catch e
-    #    if e isa DomainError
-    #        T(NaN)
-    #    else
-    #        rethrow(e)
-    #    end
-    #end
-
-    #map(zip(y_approx, y_exact)) do (ya, ye)
-    #    ulp = ulpdistance(ya, convert(T,ye))
-    #    T(ulp==0 ? 0 : log2(ulp))
-    #end |> accum
-    map(x -> biterror(orig, target, ops, x), eachcol(X)) |> vec |> accum
+function biterror(
+    orig, target, ops::AbstractOperatorEnum, X::AbstractMatrix{T}; accum=mean
+) where {T}
+    errs = try
+        y_approx = evaluate_approx(orig, ops, X)
+        y_exact = evaluate_exact(target, ops, X; init_precision=800)
+        # @info "biterror" y_approx y_exact
+        biterror.(y_approx, convert(Vector{T}, y_exact))
+    catch e
+        if e isa DomainError
+            @info "Assigning maximal error to $orig because of DomainError"
+            fill(log2(floatmax(T)), size(X, 2))
+        else
+            rethrow(e)
+        end
+    end
+    accum(errs)
 end
 function biterror(reg::Regimes, X::AbstractArray; kw...)
     mapreduce(vcat, reg.regs) do r
-        mask = [contains(r,p) for p in eachcol(X)]
-        r.cand.errors[mask,:]
+        mask = [contains(r, p) for p in eachcol(X)]
+        r.cand.errors[mask, :]
     end |> mean
     # biterror(reg, target.tree, target.metadata.operators, X; kw...)
 end
@@ -82,7 +82,9 @@ function all_operators(expr::Expr)
     end
     unique(ops)
 end
-all_operators(r::RewriteRule) = unique([all_operators(r.lhs_original); all_operators(r.rhs_original)])
+function all_operators(r::RewriteRule)
+    unique([all_operators(r.lhs_original); all_operators(r.rhs_original)])
+end
 all_operators(x::Vector) = unique(mapreduce(all_operators, vcat, x))
 all_operators(x) = []
 
@@ -97,7 +99,7 @@ end
 all_subexpressions(x) = [x]
 function all_subexpressions(expr::Expression)
     trees = all_subexpressions(expr.tree)
-    [Expression(t,expr.metadata) for t in trees]
+    [Expression(t, expr.metadata) for t in trees]
 end
 
 maximum_precision(::Int) = 0
@@ -119,6 +121,7 @@ function local_biterror(
     end
     # each BigFloat from evaluate_exact might have different precision
     exact_args = [evaluate_exact(a, ops, X) for a in arguments(tree)]
+    # @show exact_args
     prec = maximum_precision(exact_args)
 
     localf = tree.degree == 2 ? ops.binops[tree.op] : ops.unaops[tree.op]
@@ -127,10 +130,11 @@ function local_biterror(
     approx_result = localf.(approx_args...)
 
     exact_args = [BigFloat.(x, prec) for x in exact_args]
-    exact_result = evaluate_exact.(localf, exact_args...)
+    exact_result = evaluate_exact.(T, localf, exact_args...)
+    # @info localf exact_args exact_result approx_args approx_result
     bits = setprecision(prec) do
         map(zip(approx_result, exact_result)) do (ap, ex)
-            biterror(ap, convert(T,ex))
+            biterror(ap, convert(T, ex))
         end
     end
     accum(bits)

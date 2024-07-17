@@ -13,8 +13,8 @@ using DynamicExpressions
 using OrderedCollections: OrderedDict
 
 function best_candidate(candidates, points, low, high)
-    mask = [contains(low,p,high) for p in eachcol(points)]
-    d = OrderedDict(c => mean(c.errors[mask,:]) for c in candidates)
+    mask = [contains(low, p, high) for p in eachcol(points)]
+    d = OrderedDict(c => mean(c.errors[mask, :]) for c in candidates)
     findmin(d)
 end
 
@@ -26,8 +26,11 @@ plus_infsplit(::T, index::Int) where {T} = (T(Inf), index)
 plus_infsplit(s::Tuple) = plus_infsplit(s...)
 
 function infer_regimes(
-    candidates::Vector{<:Candidate}, splits::Vector{<:Vector}, points; last_point=plus_infsplit(splits[1])
-) where {T}
+    candidates::Vector{<:Candidate},
+    splits::Vector{<:Vector},
+    points;
+    last_point=plus_infsplit(splits[1]),
+)
     _best_candidate(low, high) = best_candidate(candidates, points, low, high)[2]
     _biterror(regimes::Regimes) = biterror(regimes, points)
     lowest_error(options::Vector) = findmin(Dict(r => _biterror(r) for r in options))
