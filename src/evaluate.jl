@@ -25,7 +25,14 @@ function _evaluate_exact(
         not_thin = map(i -> ulpdistance(bounds(i)...) <= 1, lo_prec_intervals)
         # @info "eval exact" init_precision length(not_thin) sum(not_thin) any(not_thin) hi_prec_intervals
         if new_precision <= max_precision && any(not_thin)
-            better_hp, better_lp = _evaluate_exact(TargetFloat, tree, ops, X[:,not_thin]; init_precision=new_precision, max_precision=max_precision)
+            better_hp, better_lp = _evaluate_exact(
+                TargetFloat,
+                tree,
+                ops,
+                X[:, not_thin];
+                init_precision=new_precision,
+                max_precision=max_precision,
+            )
             hi_prec_intervals[not_thin] .= better_hp
             lo_prec_intervals[not_thin] .= better_lp
         end
@@ -58,7 +65,9 @@ function _evaluate_exact(
         new_precision = init_precision * 2
         not_thin = ulpdistance(bounds(lo_prec_interval)...) <= 1
         if new_precision <= max_precision && not_thin
-            _evaluate_exact(TargetFloat, f, args..., init_precision=new_precision, max_precision=max_precision)
+            _evaluate_exact(
+                TargetFloat, f, args...; init_precision=new_precision, max_precision=max_precision
+            )
         else
             (hi_prec_interval, lo_prec_interval)
         end
@@ -73,10 +82,12 @@ function evaluate_approx(tree::Node, ops::AbstractOperatorEnum, x::AbstractVecto
     only(evaluate_approx(tree, ops, reshape(x, :, 1)))
 end
 function evaluate_approx(tree::Node, ops::AbstractOperatorEnum, xs::AbstractMatrix)
-    tree(xs, ops; options=EvaluationOptions(early_exit=false))
+    tree(xs, ops; options=EvaluationOptions(; early_exit=false))
 end
 
-struct Regime{T<:AbstractFloat,C<:Candidate,V<:Union{<:AbstractVector{T},Tuple{T,Int}},I<:Union{Int,Nothing}}
+struct Regime{
+    T<:AbstractFloat,C<:Candidate,V<:Union{<:AbstractVector{T},Tuple{T,Int}},I<:Union{Int,Nothing}
+}
     cand::C
     low::V
     high::V

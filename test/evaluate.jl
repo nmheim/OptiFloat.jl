@@ -20,7 +20,7 @@ using OptiFloat: Candidate, Regimes, evaluate_approx, evaluate_exact
     @test evaluate_exact(dexpr, [x, x]) == T(1)
     @test evaluate_exact(dexpr.tree, dexpr.metadata.operators, [x, x]) == T(1)
 
-    f(x,y) = x+1-y
+    f(x, y) = x + 1 - y
     @test evaluate_exact(T, f, x, x) == T(1)
 end
 

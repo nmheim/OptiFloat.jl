@@ -45,7 +45,7 @@ end
         (a + 1) - a => round(Int, log2(ulpdistance(T(0), T(1)))),
         a => 0,
     )
-    @test target == Dict(k=>round(Int,v) for (k,v) in d)
+    @test target == Dict(k => round(Int, v) for (k, v) in d)
 
     # dexpr = parse_expression(:(sqrt(x1 + 1) - sqrt(x1)); kws...)
     # points = logsample(dexpr, T, arity, 8000)

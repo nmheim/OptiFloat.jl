@@ -147,7 +147,8 @@ theories = (;
         groups=(:polynomials, :sound),
         rules=[
             @rule "sum-cubes" a b ((a^3) + (b^3)) --> (((a * a) + ((b * b) - (a * b))) * (a + b))
-            @rule "difference-cubes" a b ((a^3) - (b^3)) --> (((a * a) + ((b * b) + (a * b))) * (a - b))
+            @rule "difference-cubes" a b ((a^3) - (b^3)) -->
+                (((a * a) + ((b * b) + (a * b))) * (a - b))
             @rule "flip3-+" a b (a + b) --> (((a^3) + (b^3)) / ((a * a) + ((b * b) - (a * b))))
             @rule "flip3--" a b (a - b) --> (((a^3) - (b^3)) / ((a * a) + ((b * b) + (a * b))))
         ],

@@ -2,7 +2,6 @@ using TermInterface
 using DynamicExpressions.NodeModule: node_factory, default_allocator
 using DynamicExpressions.ExpressionModule: Metadata
 
-
 ## TermInterface.jl for Node
 
 function _get_feature(s::Symbol)
@@ -62,9 +61,7 @@ function TermInterface.arguments(n::Node)
     iscall(n) ? children(n)[2:end] : error("arguments called on a non-function call expression")
 end
 
-
 ## TermInterface.jl for Expression
-
 
 TermInterface.isexpr(e::Expression) = isexpr(e.tree)
 TermInterface.iscall(e::Expression) = iscall(e.tree)
@@ -94,7 +91,7 @@ end
 function TermInterface.children(e::Expression)
     if isexpr(e)
         if arity(e) == 1
-            [Expression(e.tree.l, e.metadata),]
+            [Expression(e.tree.l, e.metadata)]
         else
             [Expression(e.tree.l, e.metadata), Expression(e.tree.r, e.metadata)]
         end
@@ -105,19 +102,25 @@ end
 
 # FIXME: getting vectors of any from MT.jl, can we change that?
 function TermInterface.maketerm(::Type{<:Expression}, head, children::Vector, metadata)
-    cs = [isa(c,Expression) ? c.tree : c for c in children]
+    cs = [isa(c, Expression) ? c.tree : c for c in children]
     Expression(head(cs...), metadata)
 end
 function TermInterface.maketerm(::Type{<:Expression}, head, children::Vector{<:Node}, metadata)
     Expression(head(children...); metadata...)
 end
-function TermInterface.maketerm(::Type{<:Expression}, head, children::Vector{<:Node}, metadata::Metadata)
+function TermInterface.maketerm(
+    ::Type{<:Expression}, head, children::Vector{<:Node}, metadata::Metadata
+)
     Expression(head(children...), metadata)
 end
-function TermInterface.maketerm(::Type{<:Expression}, head, children::Vector{<:Expression}, metadata)
+function TermInterface.maketerm(
+    ::Type{<:Expression}, head, children::Vector{<:Expression}, metadata
+)
     maketerm(Expression, head, [c.tree for c in children], metadata)
 end
-function TermInterface.maketerm(::Type{<:Expression}, head, children::Vector{<:Expression}, ::Nothing)
+function TermInterface.maketerm(
+    ::Type{<:Expression}, head, children::Vector{<:Expression}, ::Nothing
+)
     if length(children) == 1
         (left,) = children
         Expression(head(left.tree), left.metadata)
@@ -139,7 +142,7 @@ function Metatheory.Rules.instantiate(left::Expression, pat::PatExpr, bindings)
 end
 function Metatheory.Rules.instantiate(left::Expression, pat::PatLiteral, bindings)
     NT = typeof(left.tree)
-    Expression(NT(val=pat.value), left.metadata)
+    Expression(NT(; val=pat.value), left.metadata)
 end
 
 #function Metatheory.Rules.instantiate(left::Node, pat::PatExpr, bindings)

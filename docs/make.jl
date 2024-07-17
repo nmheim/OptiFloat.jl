@@ -10,9 +10,7 @@ makedocs(;
     checkdocs=:all,
     repo="https://github.com/nmheim/OptiFloat.jl",
     format=DocumenterVitepress.MarkdownVitepress(;
-        repo="https://github.com/nmheim/OptiFloat.jl",
-        devbranch="main",
-        devurl="dev",
+        repo="https://github.com/nmheim/OptiFloat.jl", devbranch="main", devurl="dev"
     ),
     draft=false,
     source="src",
@@ -25,5 +23,5 @@ deploydocs(;
     target="build",
     branch="gh-pages",
     devbranch="main",
-    push_preview=true
+    push_preview=true,
 )

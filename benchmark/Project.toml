@@ -1,9 +1,0 @@
-[deps]
-DynamicExpressions = "a40a106e-89c9-4ca8-8020-a735e8728b6b"
-Metatheory = "e9d8d322-4543-424a-9be4-0cc815abe26c"
-OptiFloat = "704b4457-c485-4fbe-a8ad-b77f6dbf1f10"
-
-[sources]
-Metatheory = {rev = "ale/3.0", url = "https://github.com/JuliaSymbolics/Metatheory.jl"}
-DynamicExpressions = {url = "https://github.com/nmheim/DynamicExpressions.jl", rev="nh/early-exit"}
-OptiFloat = {path = "../"}

@@ -452,7 +452,7 @@ theories = (;
             @rule "hang-0p-tan" a (sin(a) / (1 + cos(a))) --> tan((a / 2))
             @rule "hang-0m-tan" a (-sin(a) / (1 + cos(a))) --> tan((-a / 2))
             @rule "hang-p0-tan" a ((1 - cos(a)) / sin(a)) --> tan((a / 2))
-            @rule "hang-m0-tan" a ((1 - cos(a)) /(-sin(a))) --> tan((-a / 2))
+            @rule "hang-m0-tan" a ((1 - cos(a)) / (-sin(a))) --> tan((-a / 2))
             @rule "hang-p-tan" a b ((sin(a) + sin(b)) / (cos(a) + cos(b))) --> tan(((a + b) / 2))
             @rule "hang-m-tan" a b ((sin(a) - sin(b)) / (cos(a) + cos(b))) --> tan(((a - b) / 2))
         ],

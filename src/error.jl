@@ -16,8 +16,8 @@ function ulpdistance(a::F, b::F) where {F<:AbstractFloat}
     return abs(a_int - b_int)
 end
 
-function biterror(x::T, y::T) where T
-    ulp = ulpdistance(x,y)
+function biterror(x::T, y::T) where {T}
+    ulp = ulpdistance(x, y)
     T(ulp == 0 ? 0 : log2(ulp))
 end
 
@@ -36,7 +36,9 @@ function biterror(orig, target, ops::AbstractOperatorEnum, x::AbstractVector{T})
     biterror(y_approx, convert(T, y_exact))
 end
 
-function biterror(orig, target, ops::AbstractOperatorEnum, X::AbstractMatrix{T}; accum=mean) where {T}
+function biterror(
+    orig, target, ops::AbstractOperatorEnum, X::AbstractMatrix{T}; accum=mean
+) where {T}
     errs = try
         y_approx = evaluate_approx(orig, ops, X)
         y_exact = evaluate_exact(target, ops, X; init_precision=800)
@@ -45,7 +47,7 @@ function biterror(orig, target, ops::AbstractOperatorEnum, X::AbstractMatrix{T};
     catch e
         if e isa DomainError
             @info "Assigning maximal error to $orig because of DomainError"
-            fill(log2(floatmax(T)), size(X,2))
+            fill(log2(floatmax(T)), size(X, 2))
         else
             rethrow(e)
         end
@@ -54,8 +56,8 @@ function biterror(orig, target, ops::AbstractOperatorEnum, X::AbstractMatrix{T};
 end
 function biterror(reg::Regimes, X::AbstractArray; kw...)
     mapreduce(vcat, reg.regs) do r
-        mask = [contains(r,p) for p in eachcol(X)]
-        r.cand.errors[mask,:]
+        mask = [contains(r, p) for p in eachcol(X)]
+        r.cand.errors[mask, :]
     end |> mean
     # biterror(reg, target.tree, target.metadata.operators, X; kw...)
 end
@@ -80,7 +82,9 @@ function all_operators(expr::Expr)
     end
     unique(ops)
 end
-all_operators(r::RewriteRule) = unique([all_operators(r.lhs_original); all_operators(r.rhs_original)])
+function all_operators(r::RewriteRule)
+    unique([all_operators(r.lhs_original); all_operators(r.rhs_original)])
+end
 all_operators(x::Vector) = unique(mapreduce(all_operators, vcat, x))
 all_operators(x) = []
 
@@ -95,7 +99,7 @@ end
 all_subexpressions(x) = [x]
 function all_subexpressions(expr::Expression)
     trees = all_subexpressions(expr.tree)
-    [Expression(t,expr.metadata) for t in trees]
+    [Expression(t, expr.metadata) for t in trees]
 end
 
 maximum_precision(::Int) = 0
@@ -130,7 +134,7 @@ function local_biterror(
     # @info localf exact_args exact_result approx_args approx_result
     bits = setprecision(prec) do
         map(zip(approx_result, exact_result)) do (ap, ex)
-            biterror(ap, convert(T,ex))
+            biterror(ap, convert(T, ex))
         end
     end
     accum(bits)

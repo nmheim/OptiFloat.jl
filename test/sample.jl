@@ -28,7 +28,6 @@ end
     end
 
     xs = logsample(x -> sum(sqrt.(x)), Float16, 2, 10)
-    @test size(xs) == (2,10)
+    @test size(xs) == (2, 10)
     @test all(xs .> 0)
 end
-
