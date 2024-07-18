@@ -8,6 +8,10 @@ using Statistics: mean
 using Metatheory: EGraph, SaturationParams, saturate!, extract!
 using Metatheory.Rewriters: PassThrough, Postwalk
 
+using Term.Tables: Table
+using Term: Panel, highlight_syntax
+using Term.Renderables: info
+
 # FIXME: type piracy
 Base.isfinite(x::Interval) = isbounded(x)
 
@@ -46,7 +50,7 @@ struct Regime{T<:AbstractFloat,C,V<:AbstractVector}
 end
 DynamicExpressions.string_tree(r::Regime) = string_tree(r.cand)
 function Base.join(a::Regime, b::Regime)
-    (a.feature==b.feature) && (b.low<=a.high<=b.high) || error("cannot join disjoint regimes")
+    (a.feature == b.feature) && (b.low <= a.high <= b.high) || error("cannot join disjoint regimes")
     if a.cand.cand_expr == b.cand.cand_expr
         mask = convert(Vector{Bool}, min.(1, a.error_mask .+ b.error_mask))
         r = Regime(a.cand, a.low, b.high, a.feature, mask)
@@ -57,12 +61,16 @@ function Base.join(a::Regime, b::Regime)
 end
 function Base.show(io::IO, r::Regime)
     e = biterror(r)
-    println(io, "($(r.low), $(r.high); f=$(r.feature), E=$e) : $(string_tree(r))")
+    v = r.cand.cand_expr.metadata.variable_names[r.feature]
+    # FIXME: turn this into table
+    println(io, "(E=$e, $(r.low) < $(v) <= $(r.high)) : $(string_tree(r))")
 end
-Base.:(==)(a::Regime, b::Regime) = a.cand==b.cand && a.low==b.low && a.high==b.high && a.feature==b.feature
+function Base.:(==)(a::Regime, b::Regime)
+    a.cand == b.cand && a.low == b.low && a.high == b.high && a.feature == b.feature
+end
 
 function biterror(r::Regime; accum=mean)
-    errs = biterror(r.cand, accum=identity)
+    errs = biterror(r.cand; accum=identity)
     errs = errs[r.error_mask]
     accum(errs)
 end
@@ -75,28 +83,61 @@ function PiecewiseRegime(rs::Tuple...)
     @assert all(sum([r.error_mask for r in regs]) .== 1)
     PiecewiseRegime(regs)
 end
-#Base.join(a::PiecewiseRegime, b::PiecewiseRegime) = PiecewiseRegime(vcat(a.regs, b.regs))
 function Base.join(a::PiecewiseRegime, r::Regime)
-    PiecewiseRegime(vcat(a.regs[1:end-1], join(a.regs[end], r).regs))
-    #reduce(join, vcat(a.regs, [r]))
-    #PiecewiseRegime(vcat(a.regs[1:end-1], []))
+    PiecewiseRegime(vcat(a.regs[1:(end - 1)], join(a.regs[end], r).regs))
 end
-function Base.show(io::IO, rs::PiecewiseRegime{A}) where {A}
-    e = biterror(rs)
-    println(io, "E=$e PiecewiseRegime:")
-    for r in rs.regs
-        print(io, " " * repr(r))
-    end
+
+function print_report(original::Candidate, rs::PiecewiseRegime)
+    result_panel = Table(
+        OrderedDict(
+            :Intervals => [(r.low, r.high) for r in rs.regs],
+            :Error => [biterror(r) for r in rs.regs],
+            :Expression => [string_tree(r.cand.cand_expr) for r in rs.regs],
+        );
+        columns_justify=[:left, :left, :left],
+        box=:ROUNDED,
+    );
+
+    orig_panel = Table(
+        OrderedDict(
+            :Interval => [(-Inf, Inf)],
+            :Error => [biterror(original)],
+            :Expression => [string_tree(original.orig_expr)],
+        );
+        columns_justify=[:left, :left, :left],
+        box=:ROUNDED,
+    )
+
+    expression_panel = Panel(
+        highlight_syntax("""function f(x)
+            $(regimes_to_expr_1d(rs))
+        end"""),
+        title="Final expression:",
+        fit=true,
+        #box=:MINIMAL_HEAVY_HEAD,
+    )
+
+    panel = Panel(
+        "      Original Expression:",
+        orig_panel,
+        "      Optimized PiecewiseRegime:",
+        result_panel,
+        " ",
+        expression_panel;
+        fit=true,
+        title="OptiFloat Result",
+        title_justify=:center,
+        justify=:center,
+    )
+    print(string(panel))
 end
 function Base.:(==)(a::PiecewiseRegime, b::PiecewiseRegime)
-    length(a.regs) == length(b.regs) && all(ra==rb for (ra,rb) in zip(a.regs,b.regs))
+    length(a.regs) == length(b.regs) && all(ra == rb for (ra, rb) in zip(a.regs, b.regs))
 end
 
 function biterror(rs::PiecewiseRegime; accum=mean)
-    accum(mapreduce(r->biterror(r,accum=identity), vcat, rs.regs))
+    accum(mapreduce(r -> biterror(r; accum=identity), vcat, rs.regs))
 end
-
-
 
 include("rules-minus.jl")
 include("rewrite.jl")
@@ -142,7 +183,6 @@ function optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T
         reconstruct = Postwalk(PassThrough(x -> x == expr ? alt : nothing))
         reconstruct(candidate.toexpr(candidate.cand_expr.tree))
     end
-    display(reconstructed)
 
     # TODO: Jaques Carrett knows about unsound rules e.g. to deal with
     #  :(((4.0c) / (b + sqrt(b ^ 2.0 - 4.0c))) / (2.0c)) division by zero
@@ -168,9 +208,8 @@ function optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T
     unique!(candidates)
     candidate.used[] = true
     sort!(candidates; by=c -> mean(convert(Vector{BigFloat}, c.errors)))
-    display(candidates)
 
-    @info "TODO: regime inference"
+    return nothing
 end
 
 end # module OptiFloat
