@@ -1,5 +1,5 @@
 using DynamicExpressions: Node, parse_expression
-using OptiFloat: Candidate, Regimes, evaluate_approx, evaluate_exact
+using OptiFloat: Candidate, PiecewiseRegime, evaluate_approx, evaluate_exact
 
 @testset "Evaluate (exact)" begin
     # expression evaluation
@@ -37,7 +37,7 @@ end
 #     xs = reshape(T[-100, 1, 100], 1, :)
 #     c1 = Candidate(e1,e1,xs)
 #     c2 = Candidate(e2,e2,xs)
-#     regs = Regimes((c1, T(-Inf), T(-1.0)), (c2, T(-1.0), T(Inf)))
+#     regs = PiecewiseRegime((c1, T(-Inf), T(-1.0)), (c2, T(-1.0), T(Inf)))
 #     res = evaluate_exact(regs, xs)
 #     res2 = vcat(evaluate_exact(e1, xs[:, 1:1]), evaluate_exact(e2, xs[:, 2:3]))
 #     @test all(res .== res2)

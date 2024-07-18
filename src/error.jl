@@ -54,7 +54,7 @@ function biterror(
     end
     accum(errs)
 end
-function biterror(reg::Regimes, X::AbstractArray; kw...)
+function biterror(reg::PiecewiseRegime, X::AbstractArray; kw...)
     mapreduce(vcat, reg.regs) do r
         mask = [contains(r, p) for p in eachcol(X)]
         r.cand.errors[mask, :]

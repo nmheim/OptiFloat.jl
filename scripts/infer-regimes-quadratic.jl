@@ -2,7 +2,7 @@ using OptiFloat
 using OptiFloat:
     biterror,
     sample_bitpattern,
-    Regimes,
+    PiecewiseRegime,
     evaluate_exact,
     evaluate_approx,
     Regime,
@@ -36,7 +36,7 @@ function infer_regimes(
         Expression(c; operators=ops, variable_names=vars)
     end
 
-    function _biterror(regimes::Regimes)
+    function _biterror(regimes::PiecewiseRegime)
         xs = reduce(hcat, filter(p -> contains(regimes, p), eachcol(points)))
         biterror(regimes, original, xs)
     end
@@ -50,7 +50,7 @@ function infer_regimes(
     best_split = map(enumerate(splits)) do (i, x)
         expr = _best_candidate(inf, x)
         reg = Regime(expr, inf, x, 0, i)
-        Regimes([reg])
+        PiecewiseRegime([reg])
     end
     _biterror.(best_split)
 
@@ -75,7 +75,7 @@ function infer_regimes(
         high = maximum(r.high for r in regimes.regs)
         expr = _best_candidate(high, last_point)
         r = Regime(expr, high, last_point, nothing, nothing)
-        Regimes(vcat(regimes.regs, [r]))
+        PiecewiseRegime(vcat(regimes.regs, [r]))
     end
 
     for r in full_range_split
