@@ -76,8 +76,6 @@ end
 
 function regimes_to_expr(rs::PiecewiseRegime)
     ifs = map(rs.regs) do r
-        # FIXME: find better way of getting expression string to make sure
-        # floats like 1.0 are actualy floats of expression type T
         expr = toexpr(r.cand)
         x = Symbol(r.cand.cand_expr.metadata.variable_names[r.feature])
         # Expr(:if, :($(only(r.low)) < x <= $(only(r.high))), :(println($s); return $expr))
