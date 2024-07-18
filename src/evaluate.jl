@@ -85,35 +85,6 @@ function evaluate_approx(tree::Node, ops::AbstractOperatorEnum, xs::AbstractMatr
     tree(xs, ops; options=EvaluationOptions(; early_exit=false))
 end
 
-lowleft(x::AbstractVector, y::AbstractVector) = all(x .< y)
-function lowleft(x::AbstractVector, y::Tuple{T,Int}) where {T}
-    (val, index) = y
-    x[index] < val
-end
-function lowleft(y::Tuple{T,Int}, x::AbstractVector) where {T}
-    (val, index) = y
-    val < x[index]
-end
-function lowleft(x::Tuple{T,Int}, y::Tuple{T,Int}) where {T}
-    (xval, xindex) = x
-    (yval, yindex) = y
-    if xindex == yindex
-        xval < yval
-    else
-        error("Splits are not on same index.")
-    end
-end
-
-lowlefteq(x::AbstractVector, y::AbstractVector) = all(x .<= y)
-function lowlefteq(x::AbstractVector, y::Tuple{T,Int}) where {T}
-    (val, index) = y
-    x[index] <= val
-end
-function lowlefteq(y::Tuple{T,Int}, x::AbstractVector) where {T}
-    (val, index) = y
-    val <= x[index]
-end
-
 Base.contains(x, point::AbstractVector, y) = lowleft(x, point) && lowlefteq(point, y)
 Base.contains(r::Regime, x::AbstractVector) = contains(r.low, x, r.high)
 Base.contains(rs::PiecewiseRegime, x::AbstractVector) = any(contains(r, x) for r in rs.regs)
