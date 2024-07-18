@@ -10,14 +10,14 @@ Random.seed!(1)
 T = Float16
 kws = (;
     binary_operators=[-, ^, /, *, +],
-    unary_operators=[-, sqrt, cbrt, log, exp],
+    unary_operators=[-, sqrt, cbrt, log, exp, abs],
     variable_names=["b", "c"],
     node_type=Node{T},
 )
 dexpr = parse_expression(:((b * (-1) - sqrt(b^2 - 4c)) / (2c)); kws...)
 
 # Sample points to test expression
-batchsize = 10000
+batchsize = 1000
 points = logsample(dexpr, batchsize; eval_exact=false)
 
 # Create first candidate and kick of optifloat main function
