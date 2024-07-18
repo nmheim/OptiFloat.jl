@@ -122,7 +122,7 @@ function print_report(original::Candidate, rs::PiecewiseRegime; rmansi=false)
     func = Expr(:function, Expr(:call, :f, expr.args[1]...), expr.args[2])
     expression_panel = Panel(highlight_syntax("$(func)"); width=width, box=box)
 
-    print(Panel("OptiFloat Result", justify=:center, box=:HORIZONTALS, width=width))
+    print(Panel("OptiFloat Result"; justify=:center, box=:HORIZONTALS, width=width))
     println("  Original Expression:")
     print(orig_panel)
     println("  Optimized PiecewiseRegime:")
