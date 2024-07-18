@@ -1,11 +1,9 @@
 name: Benchmark a pull request
 
-SYNTAX ERROR TO PREVENT RUNNING THIS
-
 on:
   pull_request_target:
     branches:
-      - main
+      - no-branch
 
 permissions:
   pull-requests: write
