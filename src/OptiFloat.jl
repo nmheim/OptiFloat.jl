@@ -4,9 +4,10 @@ using DynamicExpressions: Node, AbstractOperatorEnum
 using DynamicExpressions
 using TermInterface
 using IntervalArithmetic
-using Statistics: mean
+using Statistics: mean, median
 using Metatheory: EGraph, SaturationParams, saturate!, extract!
 using Metatheory.Rewriters: PassThrough, Postwalk
+using Term: Table, Panel, highlight_syntax, remove_ansi
 
 # FIXME: type piracy
 Base.isfinite(x::Interval) = isbounded(x)
@@ -29,13 +30,13 @@ function Candidate(candidate, original, points::AbstractMatrix)
 end
 function Base.show(io::IO, c::Candidate)
     u = c.used[] ? "✓" : "⊚"
-    # converting to bigfloat because mean might overflow (e.g. for Float16)
-    e = convert(eltype(c.errors), mean(convert(Vector{BigFloat}, c.errors)))
+    # converting to bigfloat because accum might overflow (e.g. for Float16)
+    e = convert(eltype(c.errors), default_accum(convert(Vector{BigFloat}, c.errors)))
     print(io, "$u E=$(e) : $(string_tree(c.cand_expr))")
 end
 DynamicExpressions.string_tree(r::Candidate) = string_tree(r.cand_expr)
 
-biterror(c::Candidate; accum=mean) = accum(c.errors)
+biterror(c::Candidate; accum=default_accum) = accum(c.errors)
 
 struct Regime{T<:AbstractFloat,C,V<:AbstractVector}
     cand::C
@@ -46,7 +47,7 @@ struct Regime{T<:AbstractFloat,C,V<:AbstractVector}
 end
 DynamicExpressions.string_tree(r::Regime) = string_tree(r.cand)
 function Base.join(a::Regime, b::Regime)
-    (a.feature==b.feature) && (b.low<=a.high<=b.high) || error("cannot join disjoint regimes")
+    (a.feature == b.feature) && (b.low <= a.high <= b.high) || error("cannot join disjoint regimes")
     if a.cand.cand_expr == b.cand.cand_expr
         mask = convert(Vector{Bool}, min.(1, a.error_mask .+ b.error_mask))
         r = Regime(a.cand, a.low, b.high, a.feature, mask)
@@ -57,12 +58,16 @@ function Base.join(a::Regime, b::Regime)
 end
 function Base.show(io::IO, r::Regime)
     e = biterror(r)
-    println(io, "($(r.low), $(r.high); f=$(r.feature), E=$e) : $(string_tree(r))")
+    v = r.cand.cand_expr.metadata.variable_names[r.feature]
+    # FIXME: turn this into table
+    println(io, "(E=$e, $(r.low) < $(v) <= $(r.high)) : $(string_tree(r))")
 end
-Base.:(==)(a::Regime, b::Regime) = a.cand==b.cand && a.low==b.low && a.high==b.high && a.feature==b.feature
+function Base.:(==)(a::Regime, b::Regime)
+    a.cand == b.cand && a.low == b.low && a.high == b.high && a.feature == b.feature
+end
 
-function biterror(r::Regime; accum=mean)
-    errs = biterror(r.cand, accum=identity)
+function biterror(r::Regime; accum=default_accum)
+    errs = biterror(r.cand; accum=identity)
     errs = errs[r.error_mask]
     accum(errs)
 end
@@ -75,28 +80,58 @@ function PiecewiseRegime(rs::Tuple...)
     @assert all(sum([r.error_mask for r in regs]) .== 1)
     PiecewiseRegime(regs)
 end
-#Base.join(a::PiecewiseRegime, b::PiecewiseRegime) = PiecewiseRegime(vcat(a.regs, b.regs))
 function Base.join(a::PiecewiseRegime, r::Regime)
-    PiecewiseRegime(vcat(a.regs[1:end-1], join(a.regs[end], r).regs))
-    #reduce(join, vcat(a.regs, [r]))
-    #PiecewiseRegime(vcat(a.regs[1:end-1], []))
+    PiecewiseRegime(vcat(a.regs[1:(end - 1)], join(a.regs[end], r).regs))
 end
-function Base.show(io::IO, rs::PiecewiseRegime{A}) where {A}
-    e = biterror(rs)
-    println(io, "E=$e PiecewiseRegime:")
-    for r in rs.regs
-        print(io, " " * repr(r))
-    end
+
+function print_report(original::Candidate, rs::PiecewiseRegime; rmansi=false)
+    table_kws = (; columns_widths=[14, 10, 46], box=:ROUNDED, columns_justify=[:left, :left, :left])
+    result_panel = Table(
+        OrderedDict(
+            :Intervals => [Float64.((r.low, r.high)) for r in rs.regs],
+            :Error => [biterror(r) for r in rs.regs],
+            :Expression => [string_tree(r.cand.cand_expr) for r in rs.regs],
+        );
+        footer=["Combined", "$(biterror(rs))", "%"],
+        footer_justify=[:center, :left, :center],
+        table_kws...,
+    )
+
+    orig_panel = Table(
+        OrderedDict(
+            :Interval => [(-Inf, Inf)],
+            :Error => [biterror(original)],
+            :Expression => [string_tree(original.orig_expr)],
+        );
+        table_kws...,
+    )
+
+    expr = regimes_to_expr(rs)
+    func = Expr(:function, Expr(:call, :f, expr.args[1]...), expr.args[2])
+    expression_panel = Panel(highlight_syntax("$(func)"); fit=true)
+
+    panel = Panel(
+        "  Original Expression:",
+        orig_panel,
+        "  Optimized PiecewiseRegime:",
+        result_panel,
+        "  Final Expression:",
+        expression_panel;
+        fit=true,
+        title="OptiFloat Result",
+        title_justify=:center,
+        justify=:center,
+    )
+    println("")
+    print(rmansi ? remove_ansi(string(panel)) : panel)
 end
 function Base.:(==)(a::PiecewiseRegime, b::PiecewiseRegime)
-    length(a.regs) == length(b.regs) && all(ra==rb for (ra,rb) in zip(a.regs,b.regs))
+    length(a.regs) == length(b.regs) && all(ra == rb for (ra, rb) in zip(a.regs, b.regs))
 end
 
-function biterror(rs::PiecewiseRegime; accum=mean)
-    accum(mapreduce(r->biterror(r,accum=identity), vcat, rs.regs))
+function biterror(rs::PiecewiseRegime; accum=default_accum)
+    accum(mapreduce(r -> biterror(r; accum=identity), vcat, rs.regs))
 end
-
-
 
 include("rules-minus.jl")
 include("rewrite.jl")
@@ -137,18 +172,13 @@ function optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T
     expr = candidate.toexpr(worst_expr)
     alts = recursive_rewrite(expr; depth=2)
 
-    @info "Reconstruct with simplified candidates"
     reconstructed = map(alts) do alt
         reconstruct = Postwalk(PassThrough(x -> x == expr ? alt : nothing))
         reconstruct(candidate.toexpr(candidate.cand_expr.tree))
     end
-    display(reconstructed)
 
-    # TODO: Jaques Carrett knows about unsound rules e.g. to deal with
-    #  :(((4.0c) / (b + sqrt(b ^ 2.0 - 4.0c))) / (2.0c)) division by zero
-
-    new_cs = Any[]
-    for alt in reconstructed
+    @info "Computing error of new candidates..."
+    for (i, alt) in enumerate(reconstructed)
         metadata = candidate.cand_expr.metadata
         new_dexpr = parse_expression(
             alt;
@@ -158,19 +188,24 @@ function optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T
             node_type=Node{T},
         )
         new_candidate = Candidate(new_dexpr, candidate.orig_expr, points)
-        @info new_candidate
         if any([any(new_candidate.errors .< c.errors) for c in candidates])
-            push!(new_cs, new_candidate)
+            push!(candidates, new_candidate)
         end
-    end
 
-    append!(candidates, new_cs)
+        # progress printing...
+        print("\e[2K") # clear whole line
+        print("\e[1G") # move cursor to column 1
+        print(" ($i/$(length(reconstructed)))  ")
+        _str = repr(new_candidate)
+        length(_str) > 50 ? print("$(_str[1:50])...") : print(_str)
+    end
+    println("")
+
     unique!(candidates)
     candidate.used[] = true
-    sort!(candidates; by=c -> mean(convert(Vector{BigFloat}, c.errors)))
-    display(candidates)
+    sort!(candidates; by=c -> default_accum(convert(Vector{BigFloat}, c.errors)))
 
-    @info "TODO: regime inference"
+    return nothing
 end
 
 end # module OptiFloat

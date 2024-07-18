@@ -2,6 +2,9 @@ using Documenter
 using DocumenterVitepress
 using OptiFloat
 
+# in repl:
+# V
+
 makedocs(;
     sitename="OptiFloat.jl",
     authors="Niklas Heim",

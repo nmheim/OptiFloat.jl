@@ -2,6 +2,8 @@ _inttype(::Type{Float16}) = Int16
 _inttype(::Type{Float32}) = Int32
 _inttype(::Type{Float64}) = Int64
 
+default_accum(x) = mean(x)
+
 function ulpdistance(a::F, b::F) where {F<:AbstractFloat}
     T = _inttype(F)
     a == b && return zero(T)
@@ -37,7 +39,7 @@ function biterror(orig, target, ops::AbstractOperatorEnum, x::AbstractVector{T})
 end
 
 function biterror(
-    orig, target, ops::AbstractOperatorEnum, X::AbstractMatrix{T}; accum=mean
+    orig, target, ops::AbstractOperatorEnum, X::AbstractMatrix{T}; accum=default_accum
 ) where {T}
     errs = try
         y_approx = evaluate_approx(orig, ops, X)
@@ -46,7 +48,7 @@ function biterror(
         biterror.(y_approx, convert(Vector{T}, y_exact))
     catch e
         if e isa DomainError
-            @info "Assigning maximal error to $orig because of DomainError"
+            @debug "Assigning maximal error to $orig because of DomainError"
             fill(log2(floatmax(T)), size(X, 2))
         else
             rethrow(e)
@@ -54,11 +56,11 @@ function biterror(
     end
     accum(errs)
 end
-function biterror(reg::PiecewiseRegime, X::AbstractArray; kw...)
+function biterror(reg::PiecewiseRegime, X::AbstractArray; accum=default_accum)
     mapreduce(vcat, reg.regs) do r
         mask = [contains(r, p) for p in eachcol(X)]
         r.cand.errors[mask, :]
-    end |> mean
+    end |> accum
     # biterror(reg, target.tree, target.metadata.operators, X; kw...)
 end
 function biterror(expr::Expression, target::Expression, X::AbstractArray; kw...)
@@ -114,7 +116,7 @@ function local_biterror(expr::Expression, x::AbstractArray)
 end
 
 function local_biterror(
-    tree::Node{T}, ops::AbstractOperatorEnum, X::AbstractMatrix{T}; accum=mean
+    tree::Node{T}, ops::AbstractOperatorEnum, X::AbstractMatrix{T}; accum=default_accum
 ) where {T}
     if tree.degree == 0 #|| tree.constant
         return T(0)
