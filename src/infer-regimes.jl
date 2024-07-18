@@ -78,7 +78,8 @@ function regimes_to_expr_1d(rs::PiecewiseRegime)
         # floats like 1.0 are actualy floats of expression type T
         s = string_tree(r.cand.cand_expr)
         expr = Meta.parse(s)
-        Expr(:if, :($(only(r.low)) < x <= $(only(r.high))), :(println($s); return $expr))
+        # Expr(:if, :($(only(r.low)) < x <= $(only(r.high))), :(println($s); return $expr))
+        Expr(:if, :($(only(r.low)) < x <= $(only(r.high))), :(return $expr))
     end
     Expr(:block, ifs..., :(error("Unreachable code!")))
 end

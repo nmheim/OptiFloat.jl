@@ -110,6 +110,7 @@ function print_report(original::Candidate, rs::PiecewiseRegime)
 
     expression_panel = Panel(
         highlight_syntax("""function f(x)
+            # FIXME: only works for 1D expressions with variable `x` at the moment! ;)
             $(regimes_to_expr_1d(rs))
         end"""),
         title="Final expression:",
