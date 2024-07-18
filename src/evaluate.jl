@@ -85,25 +85,6 @@ function evaluate_approx(tree::Node, ops::AbstractOperatorEnum, xs::AbstractMatr
     tree(xs, ops; options=EvaluationOptions(; early_exit=false))
 end
 
-struct Regime{
-    T<:AbstractFloat,C<:Candidate,V<:Union{<:AbstractVector{T},Tuple{T,Int}},I<:Union{Int,Nothing}
-}
-    cand::C
-    low::V
-    high::V
-    "low index"
-    li::I
-    "high index"
-    hi::I
-end
-Regime(expr, low::Vector, high::Vector) = Regime(expr, low, high, nothing, nothing)
-Regime(expr, low::Number, high::Number) = Regime(expr, [low], [high], nothing, nothing)
-
-struct Regimes{A<:AbstractVector{<:Regime}}
-    regs::A
-end
-Regimes(rs::Tuple...) = Regimes([Regime(args...) for args in rs])
-
 lowleft(x::AbstractVector, y::AbstractVector) = all(x .< y)
 function lowleft(x::AbstractVector, y::Tuple{T,Int}) where {T}
     (val, index) = y
@@ -135,9 +116,9 @@ end
 
 Base.contains(x, point::AbstractVector, y) = lowleft(x, point) && lowlefteq(point, y)
 Base.contains(r::Regime, x::AbstractVector) = contains(r.low, x, r.high)
-Base.contains(rs::Regimes, x::AbstractVector) = any(contains(r, x) for r in rs.regs)
+Base.contains(rs::PiecewiseRegime, x::AbstractVector) = any(contains(r, x) for r in rs.regs)
 
-function evaluate_approx(regs::Regimes, x::AbstractVector)
+function evaluate_approx(regs::PiecewiseRegime, x::AbstractVector)
     for regime in regs.regs
         if contains(regime, x)
             return evaluate_approx(regime.cand.cand_expr, x)
@@ -145,7 +126,7 @@ function evaluate_approx(regs::Regimes, x::AbstractVector)
     end
     error("No applicable regime.")
 end
-function evaluate_approx(regs::Regimes, ops::AbstractOperatorEnum, x::AbstractVector)
+function evaluate_approx(regs::PiecewiseRegime, ops::AbstractOperatorEnum, x::AbstractVector)
     for regime in regs.regs
         if contains(regime, x)
             return evaluate_approx(regime.cand.cand_expr.tree, ops, x)
@@ -153,24 +134,11 @@ function evaluate_approx(regs::Regimes, ops::AbstractOperatorEnum, x::AbstractVe
     end
     error("No applicable regime.")
 end
-function evaluate_approx(regimes::Regimes, X::AbstractMatrix; kw...)
+function evaluate_approx(regimes::PiecewiseRegime, X::AbstractMatrix; kw...)
     map(c -> evaluate_approx(regimes, c), eachcol(X))
 end
 
-Base.join(a::Regimes, b::Regimes) = Regimes(vcat(a.regs, b.regs))
-Base.join(a::Regimes, r::Regime) = Regimes(vcat(a.regs, [r]))
-function Base.show(io::IO, rs::Regimes{A}) where {A}
-    println(io, "Regimes:")
-    for (i, r) in enumerate(rs.regs)
-        if i == length(rs.regs)
-            print(io, "  ($(r.low), $(r.high))   : $(string_tree(r.cand.cand_expr))")
-        else
-            println(io, "  ($(r.low), $(r.high))   : $(string_tree(r.cand.cand_expr))")
-        end
-    end
-end
-
-function _evaluate_exact(regimes::Regimes, x::AbstractVector; kw...)
+function _evaluate_exact(regimes::PiecewiseRegime, x::AbstractVector; kw...)
     @assert size(x, 1) == 1
     for regime in regimes.regs
         if contains(regime, x)
@@ -179,6 +147,6 @@ function _evaluate_exact(regimes::Regimes, x::AbstractVector; kw...)
     end
     error("No applicable regime.")
 end
-function _evaluate_exact(regimes::Regimes, X::AbstractMatrix; kw...)
+function _evaluate_exact(regimes::PiecewiseRegime, X::AbstractMatrix; kw...)
     map(c -> _evaluate_exact(regimes, c), eachcol(X))
 end

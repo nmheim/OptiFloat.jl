@@ -1,4 +1,4 @@
-using OptiFloat: frombits, sample_bitpattern, logsample
+using OptiFloat: frombits, sample_bitpattern, logsample, _bits
 
 splitafter(vec, idx) = vec[1:idx], vec[(idx + 1):end]
 FLOATS = [Float16, Float32, Float64]
@@ -7,7 +7,7 @@ FLOATS = [Float16, Float32, Float64]
     for T in FLOATS
         for x in rand((-maxintfloat(T)):maxintfloat(T), 20)
             b = bitstring(x)
-            (n_sign, n_expo, _) = OptiFloat._bits(T)
+            (n_sign, n_expo, _) = _bits(T)
             sign, rest = splitafter(b, n_sign)
             expo, mant = splitafter(rest, n_expo)
             y = frombits(T, sign, expo, mant)

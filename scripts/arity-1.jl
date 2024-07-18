@@ -20,9 +20,9 @@ points = logsample(dexpr, 8000; eval_exact=false)
 candidates = [Candidate(dexpr, dexpr, points)]
 optifloat!(candidates, points)
 
-splits = [T[-100], T[-10], T[-1], T[0], T[1], T[10], T[100]]
-rs = infer_regimes(candidates, splits, points)
-display(rs)
+splits = T[-100, -10, -1, 0, 1, 10, 100]
+feature = 1
+rs = infer_regimes(candidates, splits, feature, points)
 better = regimes_to_expr_1d(rs)
 b = eval(Expr(:->, :x, better))
 b(100.0)
