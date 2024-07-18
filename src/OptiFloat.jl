@@ -3,7 +3,7 @@ module OptiFloat
 using DynamicExpressions: Node, AbstractOperatorEnum
 using DynamicExpressions
 using TermInterface
-using IntervalArithmetic: Interval, interval, bounds, isthin, mid, isbounded
+using IntervalArithmetic
 using Statistics: mean
 using Metatheory: EGraph, SaturationParams, saturate!, extract!
 using Metatheory.Rewriters: PassThrough, Postwalk
@@ -45,9 +45,21 @@ struct Regime{T<:AbstractFloat,C,V<:AbstractVector}
     error_mask::V
 end
 DynamicExpressions.string_tree(r::Regime) = string_tree(r.cand)
-function Base.show(io::IO, r::Regime)
-    println(io, "($(r.low),$(r.high); f=$(r.feature)) : $(string_tree(r))")
+function Base.join(a::Regime, b::Regime)
+    (a.feature==b.feature) && (b.low<=a.high<=b.high) || error("cannot join disjoint regimes")
+    if a.cand.cand_expr == b.cand.cand_expr
+        mask = convert(Vector{Bool}, min.(1, a.error_mask .+ b.error_mask))
+        r = Regime(a.cand, a.low, b.high, a.feature, mask)
+        PiecewiseRegime([r])
+    else
+        PiecewiseRegime([a, b])
+    end
 end
+function Base.show(io::IO, r::Regime)
+    e = biterror(r)
+    println(io, "($(r.low), $(r.high); f=$(r.feature), E=$e) : $(string_tree(r))")
+end
+Base.:(==)(a::Regime, b::Regime) = a.cand==b.cand && a.low==b.low && a.high==b.high && a.feature==b.feature
 
 function biterror(r::Regime; accum=mean)
     errs = biterror(r.cand, accum=identity)
@@ -63,23 +75,25 @@ function PiecewiseRegime(rs::Tuple...)
     @assert all(sum([r.error_mask for r in regs]) .== 1)
     PiecewiseRegime(regs)
 end
-Base.join(a::PiecewiseRegime, b::PiecewiseRegime) = PiecewiseRegime(vcat(a.regs, b.regs))
-Base.join(a::PiecewiseRegime, r::Regime) = PiecewiseRegime(vcat(a.regs, [r]))
+#Base.join(a::PiecewiseRegime, b::PiecewiseRegime) = PiecewiseRegime(vcat(a.regs, b.regs))
+function Base.join(a::PiecewiseRegime, r::Regime)
+    PiecewiseRegime(vcat(a.regs[1:end-1], join(a.regs[end], r).regs))
+    #reduce(join, vcat(a.regs, [r]))
+    #PiecewiseRegime(vcat(a.regs[1:end-1], []))
+end
 function Base.show(io::IO, rs::PiecewiseRegime{A}) where {A}
-    println(io, "PiecewiseRegime:")
+    e = biterror(rs)
+    println(io, "E=$e PiecewiseRegime:")
     for r in rs.regs
         print(io, " " * repr(r))
     end
 end
+function Base.:(==)(a::PiecewiseRegime, b::PiecewiseRegime)
+    length(a.regs) == length(b.regs) && all(ra==rb for (ra,rb) in zip(a.regs,b.regs))
+end
 
 function biterror(rs::PiecewiseRegime; accum=mean)
-    # get first full error array
-    errs = copy(biterror(rs.regs[1].cand, accum=identity))
-    # fill with errors from other regimes
-    for regime in rs.regs
-        errs[regime.error_mask] .= biterror(regime, accum=identity)
-    end
-    accum(errs)
+    accum(mapreduce(r->biterror(r,accum=identity), vcat, rs.regs))
 end
 
 

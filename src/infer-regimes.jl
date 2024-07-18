@@ -12,17 +12,26 @@ using OptiFloat:
 using DynamicExpressions
 using OrderedCollections: OrderedDict
 
-
+function regime(candidate, points, low, high, feature)
+    mask = [low < p[feature] <= high for p in eachcol(points)]
+    Regime(candidate, low, high, feature, mask)
+end
 function regimes(candidates, points, low, high, feature)
     mask = [low < p[feature] <= high for p in eachcol(points)]
     [Regime(c, low, high, feature, mask) for c in candidates]
 end
+
+IntervalArithmetic.sup(r::Regime) = r.high
+IntervalArithmetic.inf(r::Regime) = r.low
+IntervalArithmetic.sup(r::PiecewiseRegime) = maximum(r.high for r in r.regs)
+IntervalArithmetic.inf(r::PiecewiseRegime) = minimum(r.low for r in r.regs)
 
 function infer_regimes(
     candidates::Union{Vector{<:Candidate}, Vector{<:Regime}},
     splits::Vector{<:Number},
     feature::Int,
     points::Matrix{T};
+    infimum=T(-Inf),
     supremum=T(Inf),
 ) where T
     function _best_regime(low, high)
@@ -30,26 +39,37 @@ function infer_regimes(
         d = OrderedDict(r=>biterror(r) for r in rs)
         findmin(d)[2]
     end
-    lowest_error(options::Vector) = findmin(OrderedDict(r => biterror(r) for r in options))
 
-    best_split = [PiecewiseRegime([_best_regime(T(-Inf), x)]) for x in splits]
+    best_split = Dict(
+        0 => nothing,
+        1 => OrderedDict(x => PiecewiseRegime([_best_regime(infimum, x)]) for x in vcat(splits, [supremum]))
+    )
 
-    new_best_split = map(enumerate(splits)) do (i,x)
-        options = map(splits[i:end]) do y
-            x<y ? join(best_split[i], _best_regime(x,y)) : best_split[i]
+    n = 0
+    while best_split[n] != best_split[n+1]
+        n+=1
+        best_split[n+1] = typeof(best_split[n])()
+        options = OrderedDict()
+        for x in vcat(splits, [supremum])
+            for y in filter(y->y<x, splits)
+                if y < x
+                    extra_regime = _best_regime(y,x)
+                    options[y] = join(best_split[n][y], extra_regime)
+                end
+            end
+            best = if length(options) > 0
+                findmin(OrderedDict(opt=>biterror(opt) for opt in values(options)))[2]
+            else
+                best_split[n][x]
+            end
+            best_split[n+1][x] = best
+ 
+            if biterror(best_split[n][x])-1 <= biterror(best_split[n+1][x])
+                best_split[n+1][x] = best_split[n][x]
+            end
         end
-        _, best_option = lowest_error(options)
-        biterror(best_option)+1 < biterror(best_split[i]) ? best_option : best_split[i]
     end
-
-    full_range_split = map(new_best_split) do regimes
-        high = maximum(r.high for r in regimes.regs)
-        r = _best_regime(high, supremum)
-        join(regimes, r)
-    end
-
-    _, regs = lowest_error(full_range_split)
-    return regs
+    best_split[n+1][supremum]
 end
 
 function regimes_to_expr_1d(rs::PiecewiseRegime)
