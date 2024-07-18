@@ -108,14 +108,12 @@ function print_report(original::Candidate, rs::PiecewiseRegime)
         box=:ROUNDED,
     )
 
+    expr = regimes_to_expr(rs)
+    func = Expr(:function, Expr(:call, :f, expr.args[1]...), expr.args[2])
     expression_panel = Panel(
-        highlight_syntax("""function f(x)
-            # FIXME: only works for 1D expressions with variable `x` at the moment! ;)
-            $(regimes_to_expr_1d(rs))
-        end"""),
+        highlight_syntax("$(func)"),
         title="Final expression:",
         fit=true,
-        #box=:MINIMAL_HEAVY_HEAD,
     )
 
     panel = Panel(
