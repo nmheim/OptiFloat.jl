@@ -1,1 +1,3 @@
-docs/src/index.md
+# OptiFloat.jl
+
+Read the documentation [here]().

@@ -5,6 +5,41 @@
 OptiFloat.jl rewrites floating point expressions to more accurate alternatives.
 OptiFloat.jl is a pure **Julia implementation of [Herbie](https://herbie.uwplse.org/)**.
 
+```@example report
+using DynamicExpressions
+using OptiFloat
+using OptiFloat: logsample, Candidate, optifloat!, infer_regimes, print_report
+using Random
+
+# FIXME: sometimes getting NaI in logsample
+Random.seed!(1)
+
+# Define expression
+T = Float16
+kws = (;
+    binary_operators=[-, ^, /, *, +],
+    unary_operators=[-, sqrt, cbrt, log, exp, abs],
+    variable_names=["b", "c"],
+    node_type=Node{T},
+)
+dexpr = parse_expression(:((b * (-1) - sqrt(b^2 - 4c)) / (2c)); kws...)
+
+# Sample points to test expression
+batchsize = 1000
+points = logsample(dexpr, batchsize; eval_exact=false)
+
+# Create first candidate and kick of optifloat main function
+original = Candidate(dexpr, dexpr, points)
+candidates = [original]
+optifloat!(candidates, points)
+
+splits = T[-100, -10, -1, 0, 1, 10, 100]
+feature = 1
+rs = infer_regimes(candidates, splits, feature, points)
+
+print_report(original, rs; rmansi=true)
+```
+
 :::
 
 For example, the expression
@@ -88,14 +123,13 @@ using OptiFloat: local_biterrors, logsample
 
 T = Float16
 orig_expr = :(sqrt(x + 1) - sqrt(x))
-arity = 1
 dexpr = parse_expression(orig_expr;
     binary_operators=[-, ^, /, *, +],
     unary_operators=[-, sqrt],
     node_type=Node{T},
     variable_names=["x"],
 )
-points = logsample(dexpr, T, arity, 8000)
+points = logsample(dexpr, 8000)
 local_errs = local_biterrors(dexpr, points)
 ```
 
@@ -153,7 +187,8 @@ In this case very simple, because `1/(sqrt(x+1)+sqrt(x))` is better everywhere. 
 ## TODOs
 
 - [ ] Use `DynamicExpressions.Expression` throughout the code base so that we don't have to switch to Julia's `Expr` for the EGraph rewrites and back again.
-- [ ] Include all of herbie's rewrite rules
+- [x] Include all of herbie's rewrite rules
+- [ ] *series expansion rewrites!*
 - [ ] Is there a way to do the error computation in the EGraph?
 
 ## Documentation

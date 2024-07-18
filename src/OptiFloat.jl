@@ -7,10 +7,7 @@ using IntervalArithmetic
 using Statistics: mean, median
 using Metatheory: EGraph, SaturationParams, saturate!, extract!
 using Metatheory.Rewriters: PassThrough, Postwalk
-
-using Term.Tables: Table
-using Term: Panel, highlight_syntax
-using Term.Renderables: info
+using Term: Table, Panel, highlight_syntax, remove_ansi
 
 # FIXME: type piracy
 Base.isfinite(x::Interval) = isbounded(x)
@@ -87,18 +84,18 @@ function Base.join(a::PiecewiseRegime, r::Regime)
     PiecewiseRegime(vcat(a.regs[1:(end - 1)], join(a.regs[end], r).regs))
 end
 
-function print_report(original::Candidate, rs::PiecewiseRegime)
+function print_report(original::Candidate, rs::PiecewiseRegime; rmansi=false)
+    table_kws = (; columns_widths=[14, 10, 46], box=:ROUNDED, columns_justify=[:left, :left, :left])
     result_panel = Table(
         OrderedDict(
-            :Intervals => [(r.low, r.high) for r in rs.regs],
+            :Intervals => [Float64.((r.low, r.high)) for r in rs.regs],
             :Error => [biterror(r) for r in rs.regs],
             :Expression => [string_tree(r.cand.cand_expr) for r in rs.regs],
         );
-        columns_justify=[:left, :left, :left],
         footer=["Combined", "$(biterror(rs))", "%"],
         footer_justify=[:center, :left, :center],
-        box=:ROUNDED,
-    );
+        table_kws...,
+    )
 
     orig_panel = Table(
         OrderedDict(
@@ -106,16 +103,12 @@ function print_report(original::Candidate, rs::PiecewiseRegime)
             :Error => [biterror(original)],
             :Expression => [string_tree(original.orig_expr)],
         );
-        columns_justify=[:left, :left, :left],
-        box=:ROUNDED,
+        table_kws...,
     )
 
     expr = regimes_to_expr(rs)
     func = Expr(:function, Expr(:call, :f, expr.args[1]...), expr.args[2])
-    expression_panel = Panel(
-        highlight_syntax("$(func)"),
-        fit=true,
-    )
+    expression_panel = Panel(highlight_syntax("$(func)"); fit=true)
 
     panel = Panel(
         "  Original Expression:",
@@ -130,7 +123,7 @@ function print_report(original::Candidate, rs::PiecewiseRegime)
         justify=:center,
     )
     println("")
-    print(string(panel))
+    print(rmansi ? remove_ansi(string(panel)) : panel)
 end
 function Base.:(==)(a::PiecewiseRegime, b::PiecewiseRegime)
     length(a.regs) == length(b.regs) && all(ra == rb for (ra, rb) in zip(a.regs, b.regs))
@@ -185,7 +178,7 @@ function optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T
     end
 
     @info "Computing error of new candidates..."
-    for (i,alt) in enumerate(reconstructed)
+    for (i, alt) in enumerate(reconstructed)
         metadata = candidate.cand_expr.metadata
         new_dexpr = parse_expression(
             alt;
@@ -204,7 +197,7 @@ function optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T
         print("\e[1G") # move cursor to column 1
         print(" ($i/$(length(reconstructed)))  ")
         _str = repr(new_candidate)
-        length(_str)>50 ? print("$(_str[1:50])...") : print(_str)
+        length(_str) > 50 ? print("$(_str[1:50])...") : print(_str)
     end
     println("")
 

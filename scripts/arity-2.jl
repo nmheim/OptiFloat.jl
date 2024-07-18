@@ -29,4 +29,4 @@ splits = T[-100, -10, -1, 0, 1, 10, 100]
 feature = 1
 rs = infer_regimes(candidates, splits, feature, points)
 
-print_report(original, rs)
+print_report(original, rs; rmansi=false)
