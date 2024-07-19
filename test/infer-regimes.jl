@@ -42,7 +42,7 @@ z_dummy = parse_expression(:(z); variable_names=["z"])
     rx = Regime(cx, -0.5, 1.5, 1, Bool[0, 0, 1, 1, 0, 0])
     ry = Regime(cy, -Inf, -0.5, 1, Bool[1, 1, 0, 0, 0, 0])
     rz = Regime(cz, 1.5, Inf, 1, Bool[0, 0, 0, 0, 1, 1])
-    pr = infer_regimes([cx, cy, cz], splits, 1, points)
+    pr = infer_regimes([cx, cy, cz], 1, points; splits=splits)
     @test pr == join(join(ry, rx), rz)
 end
 
@@ -73,6 +73,6 @@ end
 
     splits = [-1.5, -0.5, 0.5, 1.5]
     feature = 1
-    pr1 = infer_regimes([c1, c2], splits, feature, points)
+    pr1 = infer_regimes([c1, c2], feature, points; splits=splits)
     @test pr1 == join(regime(c1, points, -Inf, -0.5, 1), regime(c2, points, -0.5, Inf, 1))
 end

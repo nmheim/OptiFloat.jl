@@ -1,5 +1,11 @@
 # Developer documentation
 
+::: danger
+
+Under construction.
+
+:::
+
 OptiFloat.jl implements the Herbie approach to floating point expression optimization:
 
 1. Given an initial expression `expr`, compute the _local error_ of every subexpression and pick the subexpression `sub_expr` with the worst error for further analysis.
