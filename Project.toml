@@ -20,6 +20,7 @@ Metatheory = {rev = "ale/3.0", url = "https://github.com/JuliaSymbolics/Metatheo
 [compat]
 Printf = "1.11.0"
 Term = "2.0.6"
+TermInterface = "2"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
