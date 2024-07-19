@@ -18,8 +18,8 @@ DynamicExpressions = {rev = "nh/early-exit", url = "https://github.com/nmheim/Dy
 Metatheory = {rev = "ale/3.0", url = "https://github.com/JuliaSymbolics/Metatheory.jl"}
 
 [compat]
-Printf = "1.11.0"
-Term = "2.0.6"
+Printf = "1"
+Term = "2"
 TermInterface = "2"
 
 [extras]
