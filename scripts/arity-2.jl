@@ -10,7 +10,6 @@ expr = :((b * (-1) - sqrt(b^2 - 4c)) / (2c))
 T = Float16
 dexpr, features = parse_expression(T, expr)
 
-
 # Sample points to test expression. Each sample with have arity(dexpr) inputs.
 # Only points that produce valid outputs are accepted as samples.
 batchsize = 1000

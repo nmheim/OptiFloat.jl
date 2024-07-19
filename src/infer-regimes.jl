@@ -18,13 +18,34 @@ IntervalArithmetic.inf(r::Regime) = r.low
 IntervalArithmetic.sup(r::PiecewiseRegime) = maximum(r.high for r in r.regs)
 IntervalArithmetic.inf(r::PiecewiseRegime) = minimum(r.low for r in r.regs)
 
+function default_splits(points::AbstractMatrix{T}, feature::Int, n::Int) where {T}
+    (mi, ma) = minimum(points[feature, :]), maximum(points[feature, :])
+    if mi < 0 && ma > 0
+        n_neg_splits = round(Int, abs(mi) * n / (abs(mi) + ma))
+        n_pos_splits = round(Int, ma * n / (abs(mi) + ma))
+        negative_splits = -logrange(1e-2, abs(mi), n_neg_splits)
+        positive_splits = logrange(1e-2, ma, n_pos_splits)
+        T.(vcat(reverse(negative_splits), positive_splits))
+    elseif mi < 0 && ma < 0
+        T.(reverse(-logrange(abs(ma), abs(mi), n)))
+    else
+        T.(logrange(mi, ma, n))
+    end
+end
+
+"""
+    infer_regimes(candidates::Vector{<:Candidate}, feature::Int, points::Matrix{T}; kws...)
+
+Pick as few candidates and their corresponding good regimes to define a `PiecewiseRegime` that
+represents an expression that performs well on all `points`.
+"""
 function infer_regimes(
     candidates::Union{Vector{<:Candidate},Vector{<:Regime}},
-    splits::Vector{<:Number},
     feature::Int,
     points::Matrix{T};
     infimum=T(-Inf),
     supremum=T(Inf),
+    splits::Vector{<:Number}=default_splits(points, feature, 10),
 ) where {T}
     function _best_regime(low, high)
         rs = regimes(candidates, points, low, high, feature)
@@ -67,13 +88,16 @@ function infer_regimes(
 end
 
 function regimes_to_expr(rs::PiecewiseRegime)
-    ifs = map(rs.regs) do r
-        expr = toexpr(r.cand)
-        x = Symbol(r.cand.cand_expr.metadata.variable_names[r.feature])
-        # Expr(:if, :($(only(r.low)) < x <= $(only(r.high))), :(println($s); return $expr))
-        Expr(:if, :($(only(r.low)) < $x <= $(only(r.high))), :(return $expr))
+    body = if length(rs.regs) == 1
+        toexpr(rs.regs[1].cand)
+    else
+        ifs = map(rs.regs) do r
+            expr = toexpr(r.cand)
+            x = Symbol(r.cand.cand_expr.metadata.variable_names[r.feature])
+            Expr(:if, :($(only(r.low)) < $x <= $(only(r.high))), :(return $expr))
+        end
+        Expr(:block, ifs..., :(error("Unreachable code!")))
     end
-    body = Expr(:block, ifs..., :(error("Unreachable code!")))
     expr = rs.regs[1].cand.orig_expr
     vars = expr.metadata.variable_names
     T = node_eltype(expr)

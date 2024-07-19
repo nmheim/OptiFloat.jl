@@ -1,5 +1,12 @@
 node_eltype(::Node{T}) where {T} = T
 node_eltype(::Expression{T}) where {T} = T
+
+"""
+    logsample(expr::Expression, batchsize::Int; eval_exact=true)
+
+Sample valid inputs to `expr`. If `eval_exact=false` `expr` is evaluated with `BigFloat`s
+so samples might be generated that cause overflow in the original floating point type of `expr`.
+"""
 function logsample(expr::Expression, batchsize::Int; eval_exact=true)
     tree = expr.tree
     ops = expr.metadata.operators
