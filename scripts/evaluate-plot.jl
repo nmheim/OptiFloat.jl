@@ -27,7 +27,7 @@ let
         colormap=:tab10,
     )
 
-    a2 = Axis(f[1, 2]; xscale=log10, title="$e2", legend=true)
+    a2 = Axis(f[1, 2]; xscale=log10, title="$e2")
     scatter!(
         a2,
         xs,

@@ -1,27 +1,42 @@
-using DynamicExpressions
-using OptiFloat: logsample, Candidate, optifloat!, infer_regimes, regimes_to_expr_1d, print_report
+using DynamicExpressions: parse_expression
+using OptiFloat: Candidate, logsample, optifloat!, infer_regimes, print_report
+using Random
 
+# FIXME: sometimes getting NaI in logsample
+Random.seed!(1)
+
+# Define expression. `features` contain a mapping from variable name to index in a sample
+expr = :(x * (-1) - sqrt(x^2 - 1))
 T = Float16
-# orig_expr = :(sqrt(x + 1) - sqrt(x))
-orig_expr = :(x * (-1) - sqrt(x^2 - 1))
-kws = (;
-    binary_operators=[-, ^, /, *, +],
-    unary_operators=[-, sqrt, abs, exp, log, cbrt],
-    node_type=Node{T},
-    variable_names=["x"],
-)
-dexpr = parse_expression(orig_expr; kws...)
-#points = logsample(dexpr, 8000, eval_exact=false)
-points = logsample(dexpr, 8000; eval_exact=false)
-candidates = [Candidate(dexpr, dexpr, points)]
+dexpr, features = parse_expression(T, expr)
+
+# Sample points to test expression. Each sample with have arity(dexpr) inputs.
+# Only points that produce valid outputs are accepted as samples.
+batchsize = 1000
+points = logsample(dexpr, batchsize; eval_exact=false)
+
+# Create first candidate and kick of optifloat main function
+original = Candidate(dexpr, points)
+candidates = [original]
+optifloat!(candidates, points) # repeat this call to further improve new candidates
+
+# infer good regimes for input variable `x`
+regimes = infer_regimes(candidates, features["x"], points)
+
+print_report(original, regimes)
+
+
+################################################################################
+# For a different expression
+expr = :(sqrt(x + 1) - sqrt(x))
+batchsize = 1000
+T = Float16
+
+dexpr, features = parse_expression(T, expr)
+points = logsample(dexpr, batchsize; eval_exact=false)
+original = Candidate(dexpr, points)
+candidates = [original]
 optifloat!(candidates, points)
+regimes = infer_regimes(candidates, features["x"], points; infimum=T(0))
+print_report(original, regimes)
 
-splits = T[-100, -10, -1, 0, 1, 10, 100]
-feature = 1
-rs = infer_regimes(candidates, splits, feature, points)
-
-# better = regimes_to_expr_1d(rs)
-# b = eval(Expr(:->, :x, better))
-# b(100.0)
-
-print_report(rs)

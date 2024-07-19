@@ -28,6 +28,7 @@ function Candidate(candidate, original, points::AbstractMatrix)
     end
     Candidate(candidate, original, Ref(false), errs, toexpr)
 end
+toexpr(c::Candidate) = integerify(c.toexpr(c.cand_expr.tree))
 function Base.show(io::IO, c::Candidate)
     u = c.used[] ? "✓" : "⊚"
     # converting to bigfloat because accum might overflow (e.g. for Float16)
@@ -59,7 +60,6 @@ end
 function Base.show(io::IO, r::Regime)
     e = biterror(r)
     v = r.cand.cand_expr.metadata.variable_names[r.feature]
-    # FIXME: turn this into table
     println(io, "(E=$e, $(r.low) < $(v) <= $(r.high)) : $(string_tree(r))")
 end
 function Base.:(==)(a::Regime, b::Regime)
@@ -84,13 +84,25 @@ function Base.join(a::PiecewiseRegime, r::Regime)
     PiecewiseRegime(vcat(a.regs[1:(end - 1)], join(a.regs[end], r).regs))
 end
 
+integerify(e::Expr) = maketerm(Expr, head(e), integerify.(children(e)), nothing)
+function integerify(x::AbstractFloat)
+    try
+        convert(Int, x)
+    catch
+        x
+    end
+end
+integerify(x) = x
+
 function print_report(original::Candidate, rs::PiecewiseRegime; rmansi=false)
-    table_kws = (; columns_widths=[14, 10, 46], box=:ROUNDED, columns_justify=[:left, :left, :left])
+    box = :ROUNDED
+    width = 80
+    table_kws = (; columns_widths=[14, 10, 52], box=box, columns_justify=[:left, :left, :left])
     result_panel = Table(
         OrderedDict(
             :Intervals => [Float64.((r.low, r.high)) for r in rs.regs],
             :Error => [biterror(r) for r in rs.regs],
-            :Expression => [string_tree(r.cand.cand_expr) for r in rs.regs],
+            :Expression => [integerify(toexpr(r.cand)) for r in rs.regs],
         );
         footer=["Combined", "$(biterror(rs))", "%"],
         footer_justify=[:center, :left, :center],
@@ -101,29 +113,22 @@ function print_report(original::Candidate, rs::PiecewiseRegime; rmansi=false)
         OrderedDict(
             :Interval => [(-Inf, Inf)],
             :Error => [biterror(original)],
-            :Expression => [string_tree(original.orig_expr)],
+            :Expression => [toexpr(original)],
         );
         table_kws...,
     )
 
     expr = regimes_to_expr(rs)
     func = Expr(:function, Expr(:call, :f, expr.args[1]...), expr.args[2])
-    expression_panel = Panel(highlight_syntax("$(func)"); fit=true)
+    expression_panel = Panel(highlight_syntax("$(func)"); width=width, box=box)
 
-    panel = Panel(
-        "  Original Expression:",
-        orig_panel,
-        "  Optimized PiecewiseRegime:",
-        result_panel,
-        "  Final Expression:",
-        expression_panel;
-        fit=true,
-        title="OptiFloat Result",
-        title_justify=:center,
-        justify=:center,
-    )
-    println("")
-    print(rmansi ? remove_ansi(string(panel)) : panel)
+    print(Panel("OptiFloat Result"; justify=:center, box=:HORIZONTALS, width=width))
+    println("  Original Expression:")
+    print(orig_panel)
+    println("  Optimized PiecewiseRegime:")
+    print(result_panel)
+    println("  Final Expression:")
+    print(expression_panel)
 end
 function Base.:(==)(a::PiecewiseRegime, b::PiecewiseRegime)
     length(a.regs) == length(b.regs) && all(ra == rb for (ra, rb) in zip(a.regs, b.regs))
