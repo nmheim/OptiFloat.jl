@@ -18,7 +18,12 @@ makedocs(;
     draft=false,
     source="src",
     build="build",
-    pages=["Home" => "index.md"],
+    pages=[
+        "Home" => "index.md"
+        "Workflow" => "workflow.md"
+        "Developer Documentation" => "dev.md"
+        "API" => "api.md"
+    ],
 )
 
 deploydocs(;
