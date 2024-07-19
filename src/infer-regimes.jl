@@ -18,21 +18,27 @@ IntervalArithmetic.inf(r::Regime) = r.low
 IntervalArithmetic.sup(r::PiecewiseRegime) = maximum(r.high for r in r.regs)
 IntervalArithmetic.inf(r::PiecewiseRegime) = minimum(r.low for r in r.regs)
 
-function default_splits(points::AbstractMatrix{T}, feature::Int, n::Int) where T
-    (mi, ma) = minimum(points[feature,:]), maximum(points[feature,:])
+function default_splits(points::AbstractMatrix{T}, feature::Int, n::Int) where {T}
+    (mi, ma) = minimum(points[feature, :]), maximum(points[feature, :])
     if mi < 0 && ma > 0
-        n_neg_splits = round(Int, abs(mi) * n / (abs(mi)+ma))
-        n_pos_splits = round(Int, ma * n / (abs(mi)+ma))
+        n_neg_splits = round(Int, abs(mi) * n / (abs(mi) + ma))
+        n_pos_splits = round(Int, ma * n / (abs(mi) + ma))
         negative_splits = -logrange(1e-2, abs(mi), n_neg_splits)
         positive_splits = logrange(1e-2, ma, n_pos_splits)
         T.(vcat(reverse(negative_splits), positive_splits))
-    elseif mi<0 && ma<0
+    elseif mi < 0 && ma < 0
         T.(reverse(-logrange(abs(ma), abs(mi), n)))
     else
         T.(logrange(mi, ma, n))
     end
 end
 
+"""
+    infer_regimes(candidates::Vector{<:Candidate}, feature::Int, points::Matrix{T}; kws...)
+
+Pick as few candidates and their corresponding good regimes to define a `PiecewiseRegime` that
+represents an expression that performs well on all `points`.
+"""
 function infer_regimes(
     candidates::Union{Vector{<:Candidate},Vector{<:Regime}},
     feature::Int,

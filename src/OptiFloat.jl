@@ -42,7 +42,6 @@ function integerify(x::AbstractFloat)
 end
 integerify(x) = x
 
-
 function Base.show(io::IO, c::Candidate)
     u = c.used[] ? "✓" : "⊚"
     # converting to bigfloat because accum might overflow (e.g. for Float16)
@@ -98,14 +97,19 @@ function Base.join(a::PiecewiseRegime, r::Regime)
     PiecewiseRegime(vcat(a.regs[1:(end - 1)], join(a.regs[end], r).regs))
 end
 
-function format_interval(a,b)
+function format_interval(a, b)
     x = Float64(a)
     y = Float64(b)
-    l = x==-Inf ? "-∞" : @sprintf("%.3f", x)
-    r = y==Inf ? "∞" : @sprintf("%.3f", y)
+    l = x == -Inf ? "-∞" : @sprintf("%.3f", x)
+    r = y == Inf ? "∞" : @sprintf("%.3f", y)
     "($l, $r)"
 end
 
+"""
+    print_report(original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
+
+Output a report including a copy-pasteable function representing the `PiecewiseRegime`.
+"""
 function print_report(original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
     box = rm_ansi ? :ASCII : :ROUNDED
     width = 80
@@ -171,6 +175,22 @@ function first_unused(candidates)
     error("No more unused candidates!")
 end
 
+"""
+    optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T}
+
+Try to find better candidate expressions than the ones that are already present in `candidates`.
+The first unused candidate will be attempted to improve and new candidate expression are added to
+`candidates`. Once a candidate is picked, this function goes through the following steps:
+
+1. Given an initial expression `candidate`, compute the `local_error` of every
+   subexpression and pick the subexpression `sub_expr` with the worst error for
+   further analysis.
+2. Recursively rewrite the `sub_expr` based on a _set of rewrite rules_,
+   generating a number of new candidates.
+3. Simplify the candidates via equality saturation (implemented in Metatheory.jl)
+4. Compute error of new candidates and add every candidate that performs better
+   on any of the `points` to the existing list.
+"""
 function optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T}
     candidate = first_unused(candidates)
 
@@ -228,10 +248,16 @@ vnames(s::Symbol) = [string(s)]
 vnames(x) = []
 function vnames(e::Expr)
     leaves = mapreduce(vnames, vcat, children(e))
-    chars = map(only ∘ collect, filter(s -> length(string(s))==1, leaves))
+    chars = map(only ∘ collect, filter(s -> length(string(s)) == 1, leaves))
     unique(string.(filter(isletter, chars)))
 end
 
+"""
+    parse_expression(T::Type{<:AbstractFloat}, expr::Expr; kws...)
+
+Parse a Julia `Expr` to a dynamic `Expression` that can be used to efficiently
+compute `local_error`s.
+"""
 function DynamicExpressions.parse_expression(
     T::Type{<:AbstractFloat},
     expr::Expr;
@@ -248,7 +274,7 @@ function DynamicExpressions.parse_expression(
         variable_names=vs,
         node_type=node_type,
     )
-    (; expr=de, features=Dict(v=>i for (i,v) in enumerate(vs)))
+    (; expr=de, features=Dict(v => i for (i, v) in enumerate(vs)))
 end
 
 end
