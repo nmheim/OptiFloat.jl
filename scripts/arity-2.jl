@@ -1,32 +1,27 @@
-using DynamicExpressions
-using OptiFloat
-using OptiFloat: logsample, Candidate, optifloat!, infer_regimes, print_report
+using DynamicExpressions: parse_expression
+using OptiFloat: Candidate, logsample, optifloat!, infer_regimes, print_report
 using Random
 
 # FIXME: sometimes getting NaI in logsample
 Random.seed!(1)
 
-# Define expression
+# Define expression. `features` contain a mapping from variable name to index in a sample
+expr = :((b * (-1) - sqrt(b^2 - 4c)) / (2c))
 T = Float16
-kws = (;
-    binary_operators=[-, ^, /, *, +],
-    unary_operators=[-, sqrt, cbrt, log, exp, abs],
-    variable_names=["b", "c"],
-    node_type=Node{T},
-)
-dexpr = parse_expression(:((b * (-1) - sqrt(b^2 - 4c)) / (2c)); kws...)
+dexpr, features = parse_expression(T, expr)
 
-# Sample points to test expression
+
+# Sample points to test expression. Each sample with have arity(dexpr) inputs.
+# Only points that produce valid outputs are accepted as samples.
 batchsize = 1000
 points = logsample(dexpr, batchsize; eval_exact=false)
 
 # Create first candidate and kick of optifloat main function
-original = Candidate(dexpr, dexpr, points)
+original = Candidate(dexpr, points)
 candidates = [original]
-optifloat!(candidates, points)
+optifloat!(candidates, points) # repeat this call to further improve new candidates
 
-splits = T[-100, -10, -1, 0, 1, 10, 100]
-feature = 1
-rs = infer_regimes(candidates, splits, feature, points)
+# infer good regimes for input variable `b`
+regimes = infer_regimes(candidates, features["b"], points)
 
-print_report(original, rs; rmansi=false)
+print_report(original, regimes)

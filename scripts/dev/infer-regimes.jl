@@ -1,4 +1,5 @@
-using OptiFloat: biterror, sample_bitpattern, PiecewiseRegime, evaluate_exact, evaluate_approx, Regime
+using OptiFloat:
+    biterror, sample_bitpattern, PiecewiseRegime, evaluate_exact, evaluate_approx, Regime
 using DynamicExpressions
 using OrderedCollections: OrderedDict
 
