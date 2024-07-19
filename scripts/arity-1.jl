@@ -25,7 +25,6 @@ regimes = infer_regimes(candidates, features["x"], points)
 
 print_report(original, regimes)
 
-
 ################################################################################
 # For a different expression
 expr = :(sqrt(x + 1) - sqrt(x))
@@ -39,4 +38,3 @@ candidates = [original]
 optifloat!(candidates, points)
 regimes = infer_regimes(candidates, features["x"], points; infimum=T(0))
 print_report(original, regimes)
-
