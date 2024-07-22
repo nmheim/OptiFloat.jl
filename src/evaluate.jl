@@ -1,4 +1,4 @@
-using DynamicExpressions: Expression, Node, AbstractOperatorEnum
+using DynamicExpressions: Expression, Node, AbstractOperatorEnum, EvalOptions
 
 function evaluate_exact(args...; kw...)
     mid.(_evaluate_exact(args...; kw...)[1])
@@ -82,7 +82,7 @@ function evaluate_approx(tree::Node, ops::AbstractOperatorEnum, x::AbstractVecto
     only(evaluate_approx(tree, ops, reshape(x, :, 1)))
 end
 function evaluate_approx(tree::Node, ops::AbstractOperatorEnum, xs::AbstractMatrix)
-    tree(xs, ops; options=EvaluationOptions(; early_exit=false))
+    tree(xs, ops; eval_options=EvalOptions(; early_exit=Val(false)))
 end
 
 Base.contains(x, point::AbstractVector, y) = lowleft(x, point) && lowlefteq(point, y)
