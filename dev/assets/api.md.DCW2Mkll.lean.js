@@ -1,0 +1,1 @@
+import{_ as i,c as s,o as e,a7 as a}from"./chunks/framework.B4FFyaM8.js";const u=JSON.parse('{"title":"API","description":"","frontmatter":{},"headers":[],"relativePath":"api.md","filePath":"api.md","lastUpdated":null}'),t={name:"api.md"},p=a("",14),l=[p];function n(r,d,o,h,k,c){return e(),s("div",null,l)}const E=i(t,[["render",n]]);export{u as __pageData,E as default};
