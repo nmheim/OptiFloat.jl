@@ -81,3 +81,22 @@ print_report(original, regimes; rm_ansi=true)
 ```
 
 As we can see, OptiFloat splits the domain close to zero, which is exactly what we want.
+
+
+## Julia function of result expression
+
+You immediately use the Julia function that is printed as part of the result:
+
+```@repl report
+using OptiFloat: regimes_to_expr;
+improved_expr = regimes_to_expr(regimes)
+improved_func = eval(improved_expr)
+
+improved_func(T(-1), T(-1))
+```
+
+To verify that the resulting `improved_func` is actually performing better you can use the `biterror`
+function. The file `scripts/arity-2.jl` contains this workflow as a standalone script, including some
+plotting code to generate the error comparison below:
+
+![](bits-of-error.png)

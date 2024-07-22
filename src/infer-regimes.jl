@@ -19,7 +19,7 @@ IntervalArithmetic.sup(r::PiecewiseRegime) = maximum(r.high for r in r.regs)
 IntervalArithmetic.inf(r::PiecewiseRegime) = minimum(r.low for r in r.regs)
 
 function default_splits(points::AbstractMatrix{T}, feature::Int, n::Int) where {T}
-    (mi, ma) = minimum(points[feature, :]), maximum(points[feature, :])
+    (mi, ma) = BigFloat(minimum(points[feature, :])), BigFloat(maximum(points[feature, :]))
     if mi < 0 && ma > 0
         n_neg_splits = round(Int, abs(mi) * n / (abs(mi) + ma))
         n_pos_splits = round(Int, ma * n / (abs(mi) + ma))
@@ -87,20 +87,30 @@ function infer_regimes(
     best_split[n + 1][supremum]
 end
 
-function regimes_to_expr(rs::PiecewiseRegime)
+function regimes_to_expr(rs::PiecewiseRegime; interval_compatible=false)
     body = if length(rs.regs) == 1
         toexpr(rs.regs[1].cand)
+    elseif interval_compatible
+        num_contains = :(_in(low, x::Number, high) = low < x <= high)
+        interval_contains =
+            :(_in(low, x::Interval, high) = issubset_interval(x, interval(low, high)))
+        ifs = map(rs.regs) do r
+            expr = toexpr(r.cand)
+            x = Symbol(r.cand.cand_expr.metadata.variable_names[r.feature])
+            (l, h) = only(r.low), only(r.high)
+            Expr(:if, :(_in($l, $x, $h)), :(return $expr))
+        end
+        Expr(:block, num_contains, interval_contains, ifs..., :(error("Unreachable code!")))
     else
         ifs = map(rs.regs) do r
             expr = toexpr(r.cand)
             x = Symbol(r.cand.cand_expr.metadata.variable_names[r.feature])
-            Expr(:if, :($(only(r.low)) < $x <= $(only(r.high))), :(return $expr))
+            (l, h) = only(r.low), only(r.high)
+            Expr(:if, :($l < $x <= $h), :(return $expr))
         end
         Expr(:block, ifs..., :(error("Unreachable code!")))
     end
     expr = rs.regs[1].cand.orig_expr
     vars = expr.metadata.variable_names
-    T = node_eltype(expr)
-    args = tuple((Expr(Symbol("::"), Symbol(v), Symbol("$T")) for v in vars)...)
-    Expr(:->, args, body)
+    Expr(:->, Expr(:tuple, Symbol.(vars)...), body)
 end

@@ -15,8 +15,8 @@ e2 = parse_expression(candidate; kws...)
 
 points = logsample(e2, 1000; eval_exact=true)
 
-y1 = e1(points; options=EvaluationOptions(; early_exit=false))
-y2 = e2(points; options=EvaluationOptions(; early_exit=false))
+y1 = e1(points; eval_options=EvalOptions(; early_exit=false))
+y2 = e2(points; eval_options=EvalOptions(; early_exit=false))
 labels = y2 .<= y1
 
 let
