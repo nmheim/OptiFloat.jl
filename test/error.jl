@@ -19,7 +19,6 @@ using OptiFloat:
 
     x = T(5e3)
     # first 14 significant bits should be incorrect
-    @test round(Int, biterror(dexpr, [x])) == 14
     @test round.(Int, biterror(dexpr, reshape([x], 1, 1); accum=identity)) == [14]
 end
 

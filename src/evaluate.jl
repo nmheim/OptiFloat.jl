@@ -53,7 +53,7 @@ function _evaluate_exact(tree::Node, ops::AbstractOperatorEnum, x::AbstractVecto
 end
 
 function _evaluate_exact(
-    TargetFloat::Type, f::Function, args::Number...; init_precision::Int=53, max_precision::Int=1500
+    TargetFloat::Type, f::Function, args...; init_precision::Int=800, max_precision::Int=2000
 )
     # compute interval for higher precision
     setprecision(init_precision) do

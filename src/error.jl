@@ -23,19 +23,21 @@ function biterror(x::T, y::T) where {T}
     T(ulp == 0 ? 0 : log2(ulp))
 end
 
-function biterror(orig, target, ops::AbstractOperatorEnum, x::AbstractVector{T}) where {T}
-    y_exact = evaluate_exact(target, ops, reshape(x, :, 1)) |> only
+function biterror(TargetFloat::Type, f::Function, args...)
+    y_exact = evaluate_exact(TargetFloat, f, args...)
     y_approx = try
-        evaluate_approx(orig, ops, x)
+        y = f(args...)
+        @assert y isa TargetFloat
+        y
     catch e
         if e isa DomainError
-            T(NaN)
+            TargetFloat(NaN)
         else
             rethrow(e)
         end
     end
 
-    biterror(y_approx, convert(T, y_exact))
+    biterror(y_approx, convert(TargetFloat, y_exact))
 end
 
 function biterror(
@@ -44,7 +46,6 @@ function biterror(
     errs = try
         y_approx = evaluate_approx(orig, ops, X)
         y_exact = evaluate_exact(target, ops, X; init_precision=800)
-        # @info "biterror" y_approx y_exact
         biterror.(y_approx, convert(Vector{T}, y_exact))
     catch e
         if e isa DomainError
@@ -61,7 +62,6 @@ function biterror(reg::PiecewiseRegime, X::AbstractArray; accum=default_accum)
         mask = [contains(r, p) for p in eachcol(X)]
         r.cand.errors[mask, :]
     end |> accum
-    # biterror(reg, target.tree, target.metadata.operators, X; kw...)
 end
 function biterror(expr::Expression, target::Expression, X::AbstractArray; kw...)
     biterror(expr.tree, target.tree, expr.metadata.operators, X; kw...)

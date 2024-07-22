@@ -119,7 +119,7 @@ function print_report(original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
         OrderedDict(
             :Intervals => [format_interval(r.low, r.high) for r in rs.regs],
             :Error => [biterror(r) for r in rs.regs],
-            :Expression => [integerify(toexpr(r.cand)) for r in rs.regs],
+            :Expression => [toexpr(r.cand) for r in rs.regs],
         );
         footer=["Combined", "$(biterror(rs))", "%"],
         footer_justify=[:center, :left, :center],
@@ -135,9 +135,9 @@ function print_report(original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
         table_kws...,
     )
 
-    expr = regimes_to_expr(rs)
-    func = Expr(:function, Expr(:call, :f, expr.args[1]...), expr.args[2])
-    expression_panel = Panel(highlight_syntax("$(func)"); width=width, box=box)
+    expr = regimes_to_expr(rs, interval_compatible=false)
+    func = Expr(:function, Expr(:call, :f, expr.args[1].args...), Expr(:block, expr.args[2]))
+    expression_panel = Panel(highlight_syntax("$(func)"); width=width, box=:HORIZONTALS)
 
     header = Panel("OptiFloat Result"; justify=:center, box=:HORIZONTALS, width=width)
 
@@ -259,7 +259,7 @@ Parse a Julia `Expr` to a dynamic `Expression` that can be used to efficiently
 compute `local_error`s.
 """
 function DynamicExpressions.parse_expression(
-    T::Type{<:AbstractFloat},
+    T::Type,
     expr::Expr;
     binary_operators=[-, ^, /, *, +],
     unary_operators=[-, sqrt, cbrt, log, exp, abs],
