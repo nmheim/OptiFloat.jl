@@ -1,4 +1,9 @@
-using DynamicExpressions: Expression, Node, AbstractOperatorEnum
+using DynamicExpressions: Expression, Node, AbstractOperatorEnum, EvalOptions
+
+# make sure intervals are valid
+function DynamicExpressions.ValueInterfaceModule.is_valid(x::Interval)
+    isbounded(x) && !isnai(x)
+end
 
 function evaluate_exact(args...; kw...)
     mid.(_evaluate_exact(args...; kw...)[1])
@@ -53,7 +58,7 @@ function _evaluate_exact(tree::Node, ops::AbstractOperatorEnum, x::AbstractVecto
 end
 
 function _evaluate_exact(
-    TargetFloat::Type, f::Function, args::Number...; init_precision::Int=53, max_precision::Int=1500
+    TargetFloat::Type, f::Function, args...; init_precision::Int=800, max_precision::Int=2000
 )
     # compute interval for higher precision
     setprecision(init_precision) do
@@ -82,7 +87,7 @@ function evaluate_approx(tree::Node, ops::AbstractOperatorEnum, x::AbstractVecto
     only(evaluate_approx(tree, ops, reshape(x, :, 1)))
 end
 function evaluate_approx(tree::Node, ops::AbstractOperatorEnum, xs::AbstractMatrix)
-    tree(xs, ops; options=EvaluationOptions(; early_exit=false))
+    tree(xs, ops; eval_options=EvalOptions(; early_exit=Val(false)))
 end
 
 Base.contains(x, point::AbstractVector, y) = lowleft(x, point) && lowlefteq(point, y)

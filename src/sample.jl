@@ -8,8 +8,6 @@ Sample valid inputs to `expr`. If `eval_exact=false` `expr` is evaluated with `B
 so samples might be generated that cause overflow in the original floating point type of `expr`.
 """
 function logsample(expr::Expression, batchsize::Int; eval_exact=true)
-    tree = expr.tree
-    ops = expr.metadata.operators
     T = node_eltype(expr)
     if eval_exact
         logsample(x -> evaluate_exact(expr, x), T, arity(expr), batchsize)

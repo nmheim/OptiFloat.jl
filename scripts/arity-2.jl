@@ -1,5 +1,7 @@
+using Statistics: mean
+using IntervalArithmetic: Interval, issubset_interval, interval
 using DynamicExpressions: parse_expression
-using OptiFloat: Candidate, logsample, optifloat!, infer_regimes, print_report
+using OptiFloat: Candidate, logsample, optifloat!, infer_regimes, print_report, biterror
 using Random
 
 # FIXME: sometimes getting NaI in logsample
@@ -24,3 +26,48 @@ optifloat!(candidates, points) # repeat this call to further improve new candida
 regimes = infer_regimes(candidates, features["b"], points)
 
 print_report(original, regimes)
+
+# Define an actual julia function for the new expression
+improved_expr = OptiFloat.regimes_to_expr(regimes; interval_compatible=true)
+improved = eval(improved_expr)
+
+# Plot the results
+let
+    using Makie, CairoMakie
+    using OptiFloat: default_splits
+    fig = Figure()
+
+    # sample new points and split them as necessary
+    points = logsample(dexpr, 5000; eval_exact=false)
+    for (v, i) in features
+        splits = default_splits(points, i, 100)
+        splits = collect.(zip(splits[1:(end - 1)], splits[2:end]))
+        inputs = mean.(splits)
+        orig, better = mapreduce((a, b) -> vcat.(a, b), splits) do (a, b)
+            ps = filter(p -> a <= p[i] < b, eachcol(points))
+            if length(ps) == 0
+                T(NaN), T(NaN)
+            else
+                e_orig = biterror(dexpr, reduce(hcat, ps); accum=mean)
+                cs = points[features["c"], :]
+                bs = points[features["b"], :]
+                e_better = mean(biterror.(T, improved, bs, cs))
+                (e_orig, e_better)
+            end
+        end
+
+        ax = Axis(
+            fig[i, 1];
+            xlabel=v,
+            ylabel="Avg. Bits of Error",
+            xscale=Makie.Symlog10(0),
+            xticks=LogTicks(-200:1:200),
+        )
+        lines!(ax, inputs, orig; label="original")
+        lines!(ax, inputs, better; label="improved")
+        if i == 1
+            axislegend(ax)
+        end
+    end
+    fig
+end
