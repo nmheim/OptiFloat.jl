@@ -31,7 +31,6 @@ print_report(original, regimes)
 improved_expr = OptiFloat.regimes_to_expr(regimes; interval_compatible=true)
 improved = eval(improved_expr)
 
-
 # Plot the results
 let
     using Makie, CairoMakie

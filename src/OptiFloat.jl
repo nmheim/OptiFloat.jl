@@ -135,7 +135,7 @@ function print_report(original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
         table_kws...,
     )
 
-    expr = regimes_to_expr(rs, interval_compatible=false)
+    expr = regimes_to_expr(rs; interval_compatible=false)
     func = Expr(:function, Expr(:call, :f, expr.args[1].args...), Expr(:block, expr.args[2]))
     expression_panel = Panel(highlight_syntax("$(func)"); width=width, box=:HORIZONTALS)
 

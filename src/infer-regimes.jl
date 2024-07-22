@@ -91,8 +91,9 @@ function regimes_to_expr(rs::PiecewiseRegime; interval_compatible=false)
     body = if length(rs.regs) == 1
         toexpr(rs.regs[1].cand)
     elseif interval_compatible
-        num_contains = :(_in(low,x::Number,high) = low < x <= high)
-        interval_contains = :(_in(low,x::Interval,high) = issubset_interval(x, interval(low, high)))
+        num_contains = :(_in(low, x::Number, high) = low < x <= high)
+        interval_contains =
+            :(_in(low, x::Interval, high) = issubset_interval(x, interval(low, high)))
         ifs = map(rs.regs) do r
             expr = toexpr(r.cand)
             x = Symbol(r.cand.cand_expr.metadata.variable_names[r.feature])
