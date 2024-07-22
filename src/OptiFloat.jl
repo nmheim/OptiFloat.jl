@@ -10,9 +10,6 @@ using Metatheory.Rewriters: PassThrough, Postwalk
 using Term: Table, Panel, highlight_syntax, remove_ansi
 using Printf: @sprintf
 
-# FIXME: type piracy
-Base.isfinite(x::Interval) = isbounded(x)
-
 struct Candidate{E<:Expression,A<:AbstractArray,F<:Function}
     cand_expr::E
     orig_expr::E

@@ -1,5 +1,10 @@
 using DynamicExpressions: Expression, Node, AbstractOperatorEnum, EvalOptions
 
+# make sure intervals are valid
+function DynamicExpressions.ValueInterfaceModule.is_valid(x::Interval)
+    isbounded(x) && !isnai(x)
+end
+
 function evaluate_exact(args...; kw...)
     mid.(_evaluate_exact(args...; kw...)[1])
 end
