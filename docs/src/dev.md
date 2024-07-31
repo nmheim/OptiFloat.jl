@@ -15,7 +15,7 @@ OptiFloat.jl implements the Herbie approach to floating point expression optimiz
 5. Keep track of all alternatives to `expr` (and their errors) in a table. Pick the next unused expression from that table and start from step 1. Finish after a number of steps or when all alternatives have been tested.
 6. Finally, infer good _regimes_: There might not be one expression that performs well for all inputs. OptiFloat.jl (like Herbie) infers good intervals for the different alternative expression and produces one compound expression.
 
-The steps above are roughly what `OptiFloat.optifloat!` is doing.
+The steps above are roughly what `OptiFloat.search_candidates!` is doing.
 
 
 ### Local biterror

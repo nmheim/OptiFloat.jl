@@ -33,6 +33,8 @@ function default_splits(points::AbstractMatrix{T}, feature::Int, n::Int) where {
     end
 end
 
+best_regime(regimes::Vector) = findmin(OrderedDict(r => biterror(r) for r in regimes))
+
 """
     infer_regimes(candidates::Vector{<:Candidate}, feature::Int, points::Matrix{T}; kws...)
 
@@ -49,8 +51,7 @@ function infer_regimes(
 ) where {T}
     function _best_regime(low, high)
         rs = regimes(candidates, points, low, high, feature)
-        d = OrderedDict(r => biterror(r) for r in rs)
-        findmin(d)[2]
+        best_regime(rs)[2]
     end
 
     best_split = Dict(
@@ -91,6 +92,7 @@ function regimes_to_expr(rs::PiecewiseRegime; interval_compatible=false)
     body = if length(rs.regs) == 1
         toexpr(rs.regs[1].cand)
     elseif interval_compatible
+        @info "If you want Interval compatible functions (e.g. to use with `evaluate_exact`) make sure to include `using IntervalArithmetic` in your file."
         num_contains = :(_in(low, x::Number, high) = low < x <= high)
         interval_contains =
             :(_in(low, x::Interval, high) = issubset_interval(x, interval(low, high)))
@@ -106,9 +108,9 @@ function regimes_to_expr(rs::PiecewiseRegime; interval_compatible=false)
             expr = toexpr(r.cand)
             x = Symbol(r.cand.cand_expr.metadata.variable_names[r.feature])
             (l, h) = only(r.low), only(r.high)
-            Expr(:if, :($l < $x <= $h), :(return $expr))
+            Expr(:if, :($l < $x <= $h), expr)
         end
-        Expr(:block, ifs..., :(error("Unreachable code!")))
+        Expr(:block, ifs...)
     end
     expr = rs.regs[1].cand.orig_expr
     vars = expr.metadata.variable_names

@@ -63,6 +63,7 @@ function _evaluate_exact(
     # compute interval for higher precision
     setprecision(init_precision) do
         arg_intervals = interval.(BigFloat.(args)) # do this only once!
+        # @info "exact" f arg_intervals
         hi_prec_interval = f(arg_intervals...)
         lo_prec_interval = convert(Interval{TargetFloat}, hi_prec_interval)
 

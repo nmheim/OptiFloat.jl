@@ -45,12 +45,6 @@ end
         a => 0,
     )
     @test target == Dict(k => round(Int, v) for (k, v) in d)
-
-    # dexpr = parse_expression(:(sqrt(x1 + 1) - sqrt(x1)); kws...)
-    # points = logsample(dexpr, T, arity, 8000)
-    # local_biterrors(dexpr, points)
-    # FIXME: Supposition.jl
-    # check that error of any expression is >= 0
 end
 
 # FIXME: infinite loop here?

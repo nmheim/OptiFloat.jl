@@ -1,5 +1,7 @@
 module OptiFloat
 
+export @optifloat, optifloat
+
 using DynamicExpressions: Node, AbstractOperatorEnum
 using DynamicExpressions
 using TermInterface
@@ -94,12 +96,12 @@ function Base.join(a::PiecewiseRegime, r::Regime)
     PiecewiseRegime(vcat(a.regs[1:(end - 1)], join(a.regs[end], r).regs))
 end
 
-function format_interval(a, b)
+function format_interval(v, a, b)
     x = Float64(a)
     y = Float64(b)
     l = x == -Inf ? "-∞" : @sprintf("%.3f", x)
     r = y == Inf ? "∞" : @sprintf("%.3f", y)
-    "($l, $r)"
+    "$v: ($l, $r)"
 end
 
 """
@@ -112,9 +114,10 @@ function print_report(original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
     width = 80
     # table_kws = (; columns_widths=[14, 10, 52], box=box, columns_justify=[:left, :left, :left])
     table_kws = (; box=box, columns_justify=[:left, :left, :left])
+    vnames = original.cand_expr.metadata.variable_names
     result_panel = Table(
         OrderedDict(
-            :Intervals => [format_interval(r.low, r.high) for r in rs.regs],
+            :Intervals => [format_interval(vnames[r.feature], r.low, r.high) for r in rs.regs],
             :Error => [biterror(r) for r in rs.regs],
             :Expression => [toexpr(r.cand) for r in rs.regs],
         );
@@ -125,7 +128,7 @@ function print_report(original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
 
     orig_panel = Table(
         OrderedDict(
-            :Interval => [format_interval(inf(rs), sup(rs))],
+            :Interval => [format_interval(vnames[rs.regs[1].feature], inf(rs), sup(rs))],
             :Error => [biterror(original)],
             :Expression => [toexpr(original)],
         );
@@ -173,7 +176,7 @@ function first_unused(candidates)
 end
 
 """
-    optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T}
+    search_candidates!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T}
 
 Try to find better candidate expressions than the ones that are already present in `candidates`.
 The first unused candidate will be attempted to improve and new candidate expression are added to
@@ -188,7 +191,7 @@ The first unused candidate will be attempted to improve and new candidate expres
 4. Compute error of new candidates and add every candidate that performs better
    on any of the `points` to the existing list.
 """
-function optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T}
+function search_candidates!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T}
     candidate = first_unused(candidates)
 
     @info "Computing local error..."
@@ -239,6 +242,66 @@ function optifloat!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T
     sort!(candidates; by=c -> default_accum(convert(Vector{BigFloat}, c.errors)))
 
     return nothing
+end
+
+function optifloat(expr::Expr, T::Type, batchsize::Int, steps::Int, verbose::Bool, interval_compatible::Bool)
+    dexpr, features = parse_expression(T, expr)
+    points = logsample(dexpr, batchsize; eval_exact=false)
+    original = Candidate(dexpr, points)
+    candidates = [original]
+    for _ in 1:steps
+        search_candidates!(candidates, points)
+    end
+    (_, regimes) = map(values(features)) do f
+        infer_regimes(candidates, f, points)
+    end |> best_regime
+    if verbose
+        print_report(original, regimes)
+    end
+    improved = regimes_to_expr(regimes; interval_compatible=interval_compatible)
+    (; original=expr, improved=improved, orig_candidate=original, improved_regimes=regimes)
+end
+
+macro optifloat(expr, kws...)
+    parsed_kws = _parse_kws(kws)
+    esc(
+        :(optifloat(
+            $(Meta.quot(expr)),
+            $(parsed_kws.T),
+            $(parsed_kws.batchsize),
+            $(parsed_kws.steps),
+            $(parsed_kws.verbose),
+            $(parsed_kws.interval_compatible),
+        )),
+    )
+end
+
+function _parse_kws(kws)
+    # Default values for keyword arguments
+    T = Float32
+    batchsize = 10_000
+    steps = 1
+    verbose = true
+    interval_compatible = false
+    for kw in kws
+        if isexpr(kw) && head(kw) == :(=)
+            (name, val) = children(kw)
+            if name == :T
+                T = val
+            elseif name == :batchsize
+                batchsize = val
+            elseif name == :steps
+                steps = val
+            elseif name == :verbose
+                verbose = val
+            elseif name == :interval_compatible
+                interval_compatible = val
+            else
+                error("$name is not an available keyword argument.")
+            end
+        end
+    end
+    (; T, batchsize, steps, verbose, interval_compatible)
 end
 
 vnames(s::Symbol) = [string(s)]
