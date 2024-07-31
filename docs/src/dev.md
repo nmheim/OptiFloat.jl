@@ -28,9 +28,14 @@ Random.seed!(1);
 ## Local biterror
 
 OptiFloat.jl computes the _biterror_ of an expression by comparing the _exact
-result_ of an expression (computed via
+result_ of an expression with the 'normal'/'approximate' result (further called
+floating point evaluation).
+
+Exact evaluation of an expression is done by evaluating it with
+`Interval{BigFloat}`s (from
 [IntervalArithmetic.jl](https://github.com/JuliaIntervals/IntervalArithmetic.jl))
-with the 'normal'/'approximate' result (further called floating point evaluation).
+where the precision of the `BigFloat` is increased until a thin result interval
+is obtained.
 
 ::: details Definition of `biterror`
 

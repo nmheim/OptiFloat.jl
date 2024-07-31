@@ -120,7 +120,8 @@ convert_args(T::Type{<:AbstractFloat}, args::Vector) = convert_args.(T, args)
     ) where {T}
 
 Compute the error of the root node in `tree`. The children are evaluated
-exactly, such that only the error of the current node is returned.
+exactly, such that only the error of the root node is returned.
+[`local_biterrors`](@ref) computes the local error for all nodes in the tree.
 """
 function local_biterror end
 function local_biterror(expr::Expression, x::AbstractArray)
@@ -156,7 +157,7 @@ end
 """
     local_biterrors(expr::Expression, x::AbstractArray)
 
-Recursively call [`local_error`](@ref) on all nodes in `expr` and return the
+Recursively call [`local_biterror`](@ref) on all nodes in `expr` and return the
 local error for each node.
 """
 function local_biterrors end
