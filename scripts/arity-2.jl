@@ -1,7 +1,5 @@
-using Statistics: mean
-using IntervalArithmetic: Interval, issubset_interval, interval
 using DynamicExpressions: parse_expression
-using OptiFloat: Candidate, logsample, optifloat!, infer_regimes, print_report, biterror
+using OptiFloat: Candidate, logsample, search_candidates!, infer_regimes, print_report, biterror
 using Random
 
 # FIXME: sometimes getting NaI in logsample
@@ -20,7 +18,7 @@ points = logsample(dexpr, batchsize; eval_exact=false)
 # Create first candidate and kick of optifloat main function
 original = Candidate(dexpr, points)
 candidates = [original]
-optifloat!(candidates, points) # repeat this call to further improve new candidates
+search_candidates!(candidates, points) # repeat this call to further improve new candidates
 
 # infer good regimes for input variable `b`
 regimes = infer_regimes(candidates, features["b"], points)
@@ -33,6 +31,7 @@ improved = eval(improved_expr)
 
 # Plot the results
 let
+    using Statistics: mean
     using Makie, CairoMakie
     using OptiFloat: default_splits
     fig = Figure()

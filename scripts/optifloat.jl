@@ -12,6 +12,7 @@ T = Float16
 
 # To use `improved` with `Interval`s as inputs we set `interval_compatible` to
 # true. This is done such that we can pass it to biterror/evaluate_exact in the plotting code.
+#! format: off
 improved = @optifloat (b * (-1) - sqrt(b^2 - 4c)) / (2c) batchsize=1000 T=T interval_compatible=true
 
 # sample new points

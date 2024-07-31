@@ -10,6 +10,5 @@ OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 TermInterface = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
 
 [sources]
-DynamicExpressions = {rev = "nh/early-exit", url = "https://github.com/nmheim/DynamicExpressions.jl"}
 Metatheory = {rev = "ale/3.0", url = "https://github.com/JuliaSymbolics/Metatheory.jl"}
 OptiFloat = {path = "../"}
