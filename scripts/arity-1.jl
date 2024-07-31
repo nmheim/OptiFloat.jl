@@ -1,5 +1,5 @@
 using DynamicExpressions: parse_expression
-using OptiFloat: Candidate, logsample, optifloat!, infer_regimes, print_report
+using OptiFloat: Candidate, logsample, search_candidates!, infer_regimes, print_report
 using Random
 
 # FIXME: sometimes getting NaI in logsample
@@ -18,7 +18,7 @@ points = logsample(dexpr, batchsize; eval_exact=false)
 # Create first candidate and kick of optifloat main function
 original = Candidate(dexpr, points)
 candidates = [original]
-optifloat!(candidates, points) # repeat this call to further improve new candidates
+search_candidates!(candidates, points) # repeat this call to further improve new candidates
 
 # infer good regimes for input variable `x`
 regimes = infer_regimes(candidates, features["x"], points)
@@ -27,14 +27,15 @@ print_report(original, regimes)
 
 ################################################################################
 # For a different expression
-expr = :(sqrt(x + 1) - sqrt(x))
+using OptiFloat
 batchsize = 1000
 T = Float16
+expr = :(sqrt(x + 1) - sqrt(x))
 
 dexpr, features = parse_expression(T, expr)
 points = logsample(dexpr, batchsize; eval_exact=false)
 original = Candidate(dexpr, points)
 candidates = [original]
-optifloat!(candidates, points)
+search_candidates!(candidates, points)
 regimes = infer_regimes(candidates, features["x"], points; infimum=T(0))
 print_report(original, regimes)

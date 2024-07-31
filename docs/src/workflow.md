@@ -3,7 +3,7 @@
 ::: details Load packages
 ```@example report
 using DynamicExpressions: parse_expression
-using OptiFloat: Candidate, logsample, optifloat!, infer_regimes, print_report
+using OptiFloat: Candidate, logsample, search_candidates!, infer_regimes, print_report
 using Random
 
 # FIXME: sometimes getting NaI in logsample
@@ -15,7 +15,7 @@ Random.seed!(1);
 
 Define the expression you want to optimize. OptiFloat uses
 [`DynamicExpressions.jl`](https://github.com/SymbolicML/DynamicExpressions.jl)
-to efficiently compute `local_errors`, so we have to parse a given julia `Expr`
+to efficiently compute `local_biterror`, so we have to parse a given julia `Expr`
 to a `DynamicExpressions.Expression`.  The `features` contain a mapping from
 variable name to the index in a sample.
 ```@example report
@@ -46,11 +46,11 @@ sampled where `b^2 - 4c < 0`, because that would result in a `DomainError` in
 
 ## Find better candidate expressions
 
-Create first candidate and kick of `optifloat!`:
+Create first candidate and kick of `search_candidates!`:
 ```@example report
 original = Candidate(dexpr, dexpr, points)
 candidates = [original]
-optifloat!(candidates, points)
+search_candidates!(candidates, points)
 ```
 
 ::: details Inspect created candidates and average error on all `points`.

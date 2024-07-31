@@ -14,13 +14,13 @@ Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
 TermInterface = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
 
 [sources]
-DynamicExpressions = {rev = "nh/early-exit", url = "https://github.com/nmheim/DynamicExpressions.jl"}
 Metatheory = {rev = "ale/3.0", url = "https://github.com/JuliaSymbolics/Metatheory.jl"}
 
 [compat]
 Printf = "1"
 Term = "2"
 TermInterface = "2"
+DynamicExpressions = "0.19"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
