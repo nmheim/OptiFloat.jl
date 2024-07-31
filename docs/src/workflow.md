@@ -15,7 +15,7 @@ Random.seed!(1);
 
 Define the expression you want to optimize. OptiFloat uses
 [`DynamicExpressions.jl`](https://github.com/SymbolicML/DynamicExpressions.jl)
-to efficiently compute `local_errors`, so we have to parse a given julia `Expr`
+to efficiently compute `local_biterror`, so we have to parse a given julia `Expr`
 to a `DynamicExpressions.Expression`.  The `features` contain a mapping from
 variable name to the index in a sample.
 ```@example report

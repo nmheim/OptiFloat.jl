@@ -74,7 +74,7 @@ fig
 ::: info
 
 For more details on how `OptiFloat.jl` works and how to customize it to your
-needs, check out the [workflow](./workflow) page.
+needs, check out the [workflow](workflow.md) page.
 
 :::
 

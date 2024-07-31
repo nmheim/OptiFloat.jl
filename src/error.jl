@@ -115,6 +115,17 @@ function local_biterror(expr::Expression, x::AbstractArray)
     local_biterror(expr.tree, expr.metadata.operators, x)
 end
 
+"""
+    function local_biterror(
+        tree::Node{T},
+        ops::AbstractOperatorEnum,
+        X::AbstractMatrix{T};
+        accum=default_accum
+    ) where {T}
+
+Compute the error per node/operation in `tree`. For each node, the children are
+evaluated exactly, such that only the error of the current node is returned.
+"""
 function local_biterror(
     tree::Node{T}, ops::AbstractOperatorEnum, X::AbstractMatrix{T}; accum=default_accum
 ) where {T}

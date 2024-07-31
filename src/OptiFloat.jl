@@ -12,6 +12,17 @@ using Metatheory.Rewriters: PassThrough, Postwalk
 using Term: Table, Panel, highlight_syntax, remove_ansi
 using Printf: @sprintf
 
+"""
+    Candidate{E<:Expression,A<:AbstractArray,F<:Function}
+
+Holds an original and a candidate expression, as well as their
+`biterror` and an indication if the candidate has already been used in
+[`search_candidates!`](@ref). Should only be constructed via one of the two
+constructors below:
+
+- `Candidate(candidate::Expr, original::Expr, points::AbstractMatrix)`
+- `Candidate(candidate::Expr, points::AbstractMatrix)` (if candidate and original are the same)
+"""
 struct Candidate{E<:Expression,A<:AbstractArray,F<:Function}
     cand_expr::E
     orig_expr::E
@@ -182,7 +193,7 @@ Try to find better candidate expressions than the ones that are already present 
 The first unused candidate will be attempted to improve and new candidate expression are added to
 `candidates`. Once a candidate is picked, this function goes through the following steps:
 
-1. Given an initial expression `candidate`, compute the `local_error` of every
+1. Given an initial expression `candidate`, compute the [`local_biterror`](@ref) of every
    subexpression and pick the subexpression `sub_expr` with the worst error for
    further analysis.
 2. Recursively rewrite the `sub_expr` based on a _set of rewrite rules_,
@@ -244,7 +255,48 @@ function search_candidates!(candidates::Vector{<:Candidate}, points::Matrix{T}) 
     return nothing
 end
 
-function optifloat(expr::Expr, T::Type, batchsize::Int, steps::Int, verbose::Bool, interval_compatible::Bool)
+"""
+    optifloat(expr::Expr, T::Type, batchsize::Int, steps::Int, verbose::Bool, interval_compatible::Bool)
+
+The main function of OptiFloat.jl. Optimizes a floating point expression and
+returns a result object which contains an improved expression.
+
+## Example
+```julia
+using OptiFloat
+
+expr = :(sqrt(x+1) - sqrt(x))
+args = (; T=Float16, batchsize=100, steps=1, verbose=true, interval_compatible=false)
+result = optifloat(expr)
+```
+
+For more convenient usage, see [`@optifloat`](@ref)
+
+
+## Arguments
+- `expr::Expr`: The *floating point* expression that should be optimized.
+- `T::Type{<:AbstractFloat}`: Floating point type that the expression should be evaluated on.
+- `batchsize::Int`: Number of samples that OptiFloat will compute errors for. The samples are
+  computed via [`logsample`](@ref) such that only samples which do not cause
+  `DomainError`s/overflows are used.
+- `steps::Int`: Number of times [`search_candidates!`](@ref) is called.
+- `verbose::Bool`: Whether to print the final report or not.
+- `interval_compatible::Bool`: If `false` the improved function only accepts normal numbers otherwise
+  the `result.improved` will be an expression that accepts `Interval`s. In the latter case you have
+  to load `IntervalArithmetic`, otherwise `eval(result.improved)` will fail.
+
+## Returns
+A `NamedTuple` with the folling fields:
+- `original::Expr`: The original expression that was attempted to be optimized.
+- `improved::Expr`: The (potentially) improved expression.
+- `orig_candidate::Candidate`: The [`Candidate`](@ref) of the original expression. This
+  struct includes the error on the sampled points.
+- `improved_regimes::PiecewiseRegime`: The struct that was used to generate `improved`.
+
+"""
+function optifloat(
+    expr::Expr, T::Type, batchsize::Int, steps::Int, verbose::Bool, interval_compatible::Bool
+)
     dexpr, features = parse_expression(T, expr)
     points = logsample(dexpr, batchsize; eval_exact=false)
     original = Candidate(dexpr, points)
@@ -262,6 +314,22 @@ function optifloat(expr::Expr, T::Type, batchsize::Int, steps::Int, verbose::Boo
     (; original=expr, improved=improved, orig_candidate=original, improved_regimes=regimes)
 end
 
+"""
+    @optifloat expr kws...
+
+The main macro of OptiFloat.jl. Optimizes a floating point expression and
+returns a result object which contains an improved expression. Accepts the same
+keyword arguments as [`optifloat`](@ref).
+
+## Examples
+```julia-repl
+julia> using OptiFloat
+julia> result = @optifloat sqrt(x+1) - sqrt(x) T=Float32 batchsize=1000
+julia> g = eval(result.improved)  # callable function
+julia> g(Float16(3730))
+Float16(0.00819)
+```
+"""
 macro optifloat(expr, kws...)
     parsed_kws = _parse_kws(kws)
     esc(
@@ -316,7 +384,7 @@ end
     parse_expression(T::Type{<:AbstractFloat}, expr::Expr; kws...)
 
 Parse a Julia `Expr` to a dynamic `Expression` that can be used to efficiently
-compute `local_error`s.
+compute [`local_biterror`](@ref)s.
 """
 function DynamicExpressions.parse_expression(
     T::Type,
