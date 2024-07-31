@@ -111,6 +111,19 @@ maximum_precision(fs::Vector) = maximum(maximum_precision.(fs))
 convert_args(T::Type{<:AbstractFloat}, arg::Number) = convert(T, arg)
 convert_args(T::Type{<:AbstractFloat}, args::Vector) = convert_args.(T, args)
 
+"""
+    function local_biterror(
+        tree::Node{T},
+        ops::AbstractOperatorEnum,
+        X::AbstractMatrix{T};
+        accum=default_accum
+    ) where {T}
+
+Compute the error of the root node in `tree`. The children are evaluated
+exactly, such that only the error of the root node is returned.
+[`local_biterrors`](@ref) computes the local error for all nodes in the tree.
+"""
+function local_biterror end
 function local_biterror(expr::Expression, x::AbstractArray)
     local_biterror(expr.tree, expr.metadata.operators, x)
 end
@@ -125,6 +138,7 @@ end
 
 Compute the error per node/operation in `tree`. For each node, the children are
 evaluated exactly, such that only the error of the current node is returned.
+[`local_biterrors`](@ref) computes the error for all nodes in the tree.
 """
 function local_biterror(
     tree::Node{T}, ops::AbstractOperatorEnum, X::AbstractMatrix{T}; accum=default_accum
@@ -153,6 +167,13 @@ function local_biterror(
     accum(bits)
 end
 
+"""
+    local_biterrors(expr::Expression, x::AbstractArray)
+
+Recursively call [`local_biterror`](@ref) on all nodes in `expr` and return the
+local error for each node.
+"""
+function local_biterrors end
 function local_biterrors(expr::Expression, x::AbstractArray)
     local_biterrors(expr.tree, expr.metadata.operators, x)
 end

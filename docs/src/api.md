@@ -1,3 +1,9 @@
+```@raw html
+---
+outline: deep
+---
+```
+
 # API
 
 API Documentation of OptiFloat.jl
