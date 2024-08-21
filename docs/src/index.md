@@ -37,6 +37,7 @@ using OptiFloat
 
 result = @optifloat sqrt(x+1)-sqrt(x) T=Float16 batchsize=100
 g = eval(result.improved)
+result.improved
 ```
 
 ```@repl sqrtexample
@@ -74,7 +75,7 @@ fig
 ::: info
 
 For more details on how `OptiFloat.jl` works and how to customize it to your
-needs, check out the [developer docs](dev.md) page.
+needs, check out OptiFloat [under the hood](internals.md).
 
 :::
 
