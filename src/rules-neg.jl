@@ -1,3 +1,4 @@
+# These rules are auto generated from https://github.com/herbie-fp/herbie/blob/main/src/core/rules.rkt
 using Metatheory
 
 theories = (;
@@ -633,27 +634,3 @@ REWRITE_THEORY = convert(Vector{RewriteRule}, mapreduce(t -> t.rules, ∪, theor
 SIMPLIFY_THEORY = convert(
     Vector{RewriteRule}, mapreduce(t -> t.rules, ∪, filter(t -> (:simplify ∈ t.groups), theories))
 )
-#SIMPLIFY_THEORY = convert(
-#    Vector{RewriteRule},
-#    reduce(
-#        ∪,
-#        [
-#            theories.commutativity,
-#            theories.associativity,
-#            theories.counting,
-#            theories.distributivity,
-#            theories.distributivity_fp_safe,
-#            theories.cancel_sign_fp_safe,
-#            theories.difference_of_squares_canonicalize,
-#            theories.id_reduce,
-#            theories.id_reduce_fp_safe,
-#            theories.id_reduce_fp_safe_nan,
-#            theories.nan_transform_fp_safe,
-#            theories.squares_reduce,
-#            theories.squares_transform,
-#            theories.pow_canonicalize,
-#            theories.fractions_distribute,
-#            theories.fractions_transform,
-#        ],
-#    ),
-#)

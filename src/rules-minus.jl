@@ -1,3 +1,4 @@
+# These rules are auto generated from https://github.com/herbie-fp/herbie/blob/main/src/core/rules.rkt
 using Metatheory
 
 theories = (;
