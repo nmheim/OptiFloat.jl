@@ -158,7 +158,6 @@ function local_biterror(
 
     exact_args = [BigFloat.(x, prec) for x in exact_args]
     exact_result = evaluate_exact.(T, localf, exact_args...)
-    # @info localf exact_args exact_result approx_args approx_result
     bits = setprecision(prec) do
         map(zip(approx_result, exact_result)) do (ap, ex)
             biterror(ap, convert(T, ex))

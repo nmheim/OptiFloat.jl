@@ -205,17 +205,17 @@ The first unused candidate will be attempted to improve and new candidate expres
 function search_candidates!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T}
     candidate = first_unused(candidates)
 
-    @info "Computing local error..."
+    @debug "Computing local error..."
     local_errs = local_biterrors(candidate.cand_expr, points)
-    @info "Errors:" local_errs
+    @debug "Errors:" local_errs
 
     (err, worst_expr) = findmax(local_errs)
-    @info "Optimizing expression with highest local error:" worst_expr err
+    @debug "Optimizing expression with highest local error:" worst_expr err
 
-    @info "Recursive rewrite to obtain new candidate expressions..."
+    @debug "Recursive rewrite to obtain new candidate expressions..."
     alts = recursive_rewrite(candidate.toexpr(worst_expr); depth=2)
 
-    @info "Computing error of new candidates..."
+    @debug "Computing error of new candidates..."
     for (i, alt) in enumerate(alts)
 
         # Replace worst_expr with potentially better expressions
@@ -240,11 +240,12 @@ function search_candidates!(candidates::Vector{<:Candidate}, points::Matrix{T}) 
         end
 
         # Progress printing...
-        print("\e[2K") # clear whole line
-        print("\e[2G") # move cursor to column 1
-        print(" ($i/$(length(alts)))  ")
-        _str = repr(new_candidate)
-        length(_str) > 50 ? print("$(_str[1:50])...") : print(_str)
+        @debug " Candidate ($i/$(length(alts))): $new_candidate"
+        # print("\e[2K") # clear whole line
+        # print("\e[2G") # move cursor to column 1
+        # print(" Candidate ($i/$(length(alts))):  ")
+        # _str = repr(new_candidate)
+        # length(_str) > 50 ? print("$(_str[1:50])...") : print(_str)
     end
     println("")
 
@@ -267,7 +268,7 @@ using OptiFloat
 
 expr = :(sqrt(x+1) - sqrt(x))
 args = (; T=Float16, batchsize=100, steps=1, verbose=true, interval_compatible=false)
-result = optifloat(expr)
+result = optifloat(expr; args...)
 ```
 
 For more convenient usage, see [`@optifloat`](@ref)
@@ -286,7 +287,7 @@ For more convenient usage, see [`@optifloat`](@ref)
   to load `IntervalArithmetic`, otherwise `eval(result.improved)` will fail.
 
 ## Returns
-A `NamedTuple` with the folling fields:
+A `NamedTuple` with the following fields:
 - `original::Expr`: The original expression that was attempted to be optimized.
 - `improved::Expr`: The (potentially) improved expression.
 - `orig_candidate::Candidate`: The [`Candidate`](@ref) of the original expression. This

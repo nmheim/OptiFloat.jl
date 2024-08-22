@@ -10,9 +10,6 @@ and will be discussed in depth in the rest of this document.
 4. Finally, infer good _regimes_: There might not be one expression that performs well for all inputs. OptiFloat.jl (like Herbie) infers good intervals for the different alternative expression and produces one compound expression.
 
 
-
-
-
 ::: details Load packages
 ```@example report
 using DynamicExpressions: parse_expression
@@ -157,14 +154,20 @@ candidates
 ```
 :::
 
-
 Now we have a few candidates, some of which perform much better on some inputs
 than the original expression. If we were to pick the best expression for every
-point, we would end up with a lot of costly if statements, and overfit on the
+point, we would end up with a lot of costly if-statements, and overfit on the
 `points` that we evaluated the expression with.  For example, the two best
 expressions in this case are:
-- The original: `(-b - sqrt(b^2 - 4c)) / (2c)`
-- A new candidate: `((4c) / (sqrt(b ^ 2 - 4c) - b)) / (2c)`
+1. The original: `(-b - sqrt(b^2 - 4c)) / (2c)`
+```@repl report
+candidates[1]
+```
+
+2. A new candidate: `((4c) / (sqrt(b ^ 2 - 4c) - b)) / (2c)`
+```@repl report
+candidates[16]
+```
 
 We can plot the samples again, now with different colors for the expression that performs better:
 

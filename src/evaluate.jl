@@ -26,9 +26,7 @@ function _evaluate_exact(
         lo_prec_intervals = map(i -> convert(Interval{TargetFloat}, i), hi_prec_intervals)
 
         new_precision = init_precision * 2
-        # not_thin = @. !isthin(low_prec_intervals)
         not_thin = map(i -> ulpdistance(bounds(i)...) <= 1, lo_prec_intervals)
-        # @info "eval exact" init_precision length(not_thin) sum(not_thin) any(not_thin) hi_prec_intervals
         if new_precision <= max_precision && any(not_thin)
             better_hp, better_lp = _evaluate_exact(
                 TargetFloat,
@@ -63,7 +61,6 @@ function _evaluate_exact(
     # compute interval for higher precision
     setprecision(init_precision) do
         arg_intervals = interval.(BigFloat.(args)) # do this only once!
-        # @info "exact" f arg_intervals
         hi_prec_interval = f(arg_intervals...)
         lo_prec_interval = convert(Interval{TargetFloat}, hi_prec_interval)
 
