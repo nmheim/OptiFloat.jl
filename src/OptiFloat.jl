@@ -1,5 +1,6 @@
 module OptiFloat
 
+export OptiFloatResult
 export @optifloat, optifloat
 
 using DynamicExpressions: Node, AbstractOperatorEnum
@@ -247,7 +248,7 @@ function search_candidates!(candidates::Vector{<:Candidate}, points::Matrix{T}) 
         # _str = repr(new_candidate)
         # length(_str) > 50 ? print("$(_str[1:50])...") : print(_str)
     end
-    println("")
+    # println("")
 
     unique!(candidates)
     candidate.used[] = true
@@ -257,18 +258,34 @@ function search_candidates!(candidates::Vector{<:Candidate}, points::Matrix{T}) 
 end
 
 """
-    optifloat(expr::Expr, T::Type, batchsize::Int, steps::Int, verbose::Bool, interval_compatible::Bool)
+    OptiFloatResult{O<:Expr,I<:Expr,C<:Candidate,R<:PiecewiseRegime}
+
+## Fields
+- `original::Expr`: The original expression that was attempted to be optimized.
+- `improved::Expr`: The (potentially) improved expression.
+- `original_candidate::Candidate`: The [`Candidate`](@ref) of the original expression. This
+  struct includes the error on the sampled points.
+- `improved_regimes::PiecewiseRegime`: The struct that was used to generate `improved`.
+"""
+struct OptiFloatResult{O<:Expr,I<:Expr,C<:Candidate,R<:PiecewiseRegime}
+    original::O
+    improved::I
+    original_candidate::C
+    improved_regimes::R
+end
+Base.show(io::IO, x::OptiFloatResult) = print_report(x.original_candidate, x.improved_regimes)
+
+"""
+    optifloat(expr::Expr, T::Type, batchsize::Int, steps::Int, interval_compatible::Bool)
 
 The main function of OptiFloat.jl. Optimizes a floating point expression and
 returns a result object which contains an improved expression.
 
 ## Example
-```julia
-using OptiFloat
-
-expr = :(sqrt(x+1) - sqrt(x))
-args = (; T=Float16, batchsize=100, steps=1, verbose=true, interval_compatible=false)
-result = optifloat(expr; args...)
+```julia-repl
+julia> using OptiFloat
+julia> expr = :(sqrt(x+1) - sqrt(x))
+julia> optifloat(expr; T=Float16, batchsize=100, steps=1, interval_compatible=false)
 ```
 
 For more convenient usage, see [`@optifloat`](@ref)
@@ -281,22 +298,15 @@ For more convenient usage, see [`@optifloat`](@ref)
   computed via [`logsample`](@ref) such that only samples which do not cause
   `DomainError`s/overflows are used.
 - `steps::Int`: Number of times [`search_candidates!`](@ref) is called.
-- `verbose::Bool`: Whether to print the final report or not.
 - `interval_compatible::Bool`: If `false` the improved function only accepts normal numbers otherwise
   the `result.improved` will be an expression that accepts `Interval`s. In the latter case you have
   to load `IntervalArithmetic`, otherwise `eval(result.improved)` will fail.
 
 ## Returns
-A `NamedTuple` with the following fields:
-- `original::Expr`: The original expression that was attempted to be optimized.
-- `improved::Expr`: The (potentially) improved expression.
-- `orig_candidate::Candidate`: The [`Candidate`](@ref) of the original expression. This
-  struct includes the error on the sampled points.
-- `improved_regimes::PiecewiseRegime`: The struct that was used to generate `improved`.
-
+An [`OptiFloatResult`](@ref).
 """
 function optifloat(
-    expr::Expr, T::Type, batchsize::Int, steps::Int, verbose::Bool, interval_compatible::Bool
+    expr::Expr; T::Type=Float16, batchsize::Int=10_000, steps::Int=1, interval_compatible::Bool=false
 )
     dexpr, features = parse_expression(T, expr)
     points = logsample(dexpr, batchsize; eval_exact=false)
@@ -308,11 +318,8 @@ function optifloat(
     (_, regimes) = map(values(features)) do f
         infer_regimes(candidates, f, points)
     end |> best_regime
-    if verbose
-        print_report(original, regimes)
-    end
     improved = regimes_to_expr(regimes; interval_compatible=interval_compatible)
-    (; original=expr, improved=improved, orig_candidate=original, improved_regimes=regimes)
+    OptiFloatResult(expr, improved, original, regimes)
 end
 
 """
@@ -325,44 +332,32 @@ keyword arguments as [`optifloat`](@ref).
 ## Examples
 ```julia-repl
 julia> using OptiFloat
-julia> result = @optifloat sqrt(x+1) - sqrt(x) T=Float32 batchsize=1000
-julia> g = eval(result.improved)  # callable function
+julia> g = @optifloat sqrt(x+1) - sqrt(x) T=Float32 batchsize=1000
 julia> g(Float16(3730))
 Float16(0.00819)
 ```
 """
 macro optifloat(expr, kws...)
     parsed_kws = _parse_kws(kws)
-    esc(
-        :(optifloat(
-            $(Meta.quot(expr)),
-            $(parsed_kws.T),
-            $(parsed_kws.batchsize),
-            $(parsed_kws.steps),
-            $(parsed_kws.verbose),
-            $(parsed_kws.interval_compatible),
-        )),
-    )
+    res = optifloat(expr; parsed_kws...)
+    res.improved
 end
 
 function _parse_kws(kws)
     # Default values for keyword arguments
-    T = Float32
+    T = Float16
     batchsize = 10_000
     steps = 1
-    verbose = true
     interval_compatible = false
     for kw in kws
         if isexpr(kw) && head(kw) == :(=)
             (name, val) = children(kw)
             if name == :T
-                T = val
+                T = eval(val)
             elseif name == :batchsize
                 batchsize = val
             elseif name == :steps
                 steps = val
-            elseif name == :verbose
-                verbose = val
             elseif name == :interval_compatible
                 interval_compatible = val
             else
@@ -370,7 +365,7 @@ function _parse_kws(kws)
             end
         end
     end
-    (; T, batchsize, steps, verbose, interval_compatible)
+    (; T, batchsize, steps, interval_compatible)
 end
 
 vnames(s::Symbol) = [string(s)]
