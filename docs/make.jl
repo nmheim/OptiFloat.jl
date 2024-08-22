@@ -19,9 +19,9 @@ makedocs(;
     source="src",
     build="build",
     pages=[
-        "Home" => "index.md"
-        "Developer Documentation" => "dev.md"
+        "Under the hood" => "internals.md"
         "API" => "api.md"
+        "Install" => "install.md"
     ],
 )
 
