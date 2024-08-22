@@ -108,7 +108,7 @@ function regimes_to_expr(rs::PiecewiseRegime; interval_compatible=false)
             expr = toexpr(r.cand)
             x = Symbol(r.cand.cand_expr.metadata.variable_names[r.feature])
             (l, h) = only(r.low), only(r.high)
-            Expr(:if, :($l < $x <= $h), expr)
+            Expr(:if, :($l < $x <= $h), :(return $expr))
         end
         Expr(:block, ifs...)
     end

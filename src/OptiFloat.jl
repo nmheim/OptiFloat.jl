@@ -12,6 +12,7 @@ using Metatheory: EGraph, SaturationParams, saturate!, extract!
 using Metatheory.Rewriters: PassThrough, Postwalk
 using Term: Table, Panel, highlight_syntax, remove_ansi
 using Printf: @sprintf
+using PrecompileTools: @setup_workload, @compile_workload
 
 """
     Candidate{E<:Expression,A<:AbstractArray,F<:Function}
@@ -117,11 +118,11 @@ function format_interval(v, a, b)
 end
 
 """
-    print_report(original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
+    print_report(io::IO, original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
 
 Output a report including a copy-pasteable function representing the `PiecewiseRegime`.
 """
-function print_report(original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
+function print_report(io::IO, original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
     box = rm_ansi ? :ASCII : :ROUNDED
     width = 80
     # table_kws = (; columns_widths=[14, 10, 52], box=box, columns_justify=[:left, :left, :left])
@@ -133,7 +134,7 @@ function print_report(original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
             :Error => [biterror(r) for r in rs.regs],
             :Expression => [toexpr(r.cand) for r in rs.regs],
         );
-        footer=["Combined", "$(biterror(rs))", "%"],
+        footer=length(rs.regs) > 1 ? ["Combined", "$(biterror(rs))", "%"] : nothing,
         footer_justify=[:center, :left, :center],
         table_kws...,
     )
@@ -153,14 +154,14 @@ function print_report(original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
 
     header = Panel("OptiFloat Result"; justify=:center, box=:HORIZONTALS, width=width)
 
-    na_print(x) = println(remove_ansi(string(x)))
-    rm_ansi ? na_print(header) : print(header)
-    println("\n  Original Expression:")
-    rm_ansi ? na_print(orig_panel) : print(orig_panel)
-    println("\n  Optimized PiecewiseRegime:")
-    rm_ansi ? na_print(result_panel) : print(result_panel)
-    println("\n  Final Expression:")
-    rm_ansi ? na_print(expression_panel) : print(expression_panel)
+    na_print(x) = rm_ansi ? println(io, remove_ansi(string(x))) : print(io, x)
+    na_print(header)
+    println(io, "\n  Original Expression:")
+    na_print(orig_panel)
+    println(io, "\n  Optimized PiecewiseRegime:")
+    na_print(result_panel)
+    println(io, "\n  Improved function:")
+    na_print(expression_panel)
 end
 function Base.:(==)(a::PiecewiseRegime, b::PiecewiseRegime)
     length(a.regs) == length(b.regs) && all(ra == rb for (ra, rb) in zip(a.regs, b.regs))
@@ -273,7 +274,7 @@ struct OptiFloatResult{O<:Expr,I<:Expr,C<:Candidate,R<:PiecewiseRegime}
     original_candidate::C
     improved_regimes::R
 end
-Base.show(io::IO, x::OptiFloatResult) = print_report(x.original_candidate, x.improved_regimes)
+Base.show(io::IO, x::OptiFloatResult) = print_report(io, x.original_candidate, x.improved_regimes)
 
 """
     optifloat(expr::Expr, T::Type, batchsize::Int, steps::Int, interval_compatible::Bool)
@@ -306,7 +307,11 @@ For more convenient usage, see [`@optifloat`](@ref)
 An [`OptiFloatResult`](@ref).
 """
 function optifloat(
-    expr::Expr; T::Type=Float16, batchsize::Int=10_000, steps::Int=1, interval_compatible::Bool=false
+    expr::Expr;
+    T::Type=Float16,
+    batchsize::Int=10_000,
+    steps::Int=1,
+    interval_compatible::Bool=false,
 )
     dexpr, features = parse_expression(T, expr)
     points = logsample(dexpr, batchsize; eval_exact=false)
@@ -332,7 +337,7 @@ keyword arguments as [`optifloat`](@ref).
 ## Examples
 ```julia-repl
 julia> using OptiFloat
-julia> g = @optifloat sqrt(x+1) - sqrt(x) T=Float32 batchsize=1000
+julia> g = @optifloat sqrt(x+1) - sqrt(x) T=Float16 batchsize=1000
 julia> g(Float16(3730))
 Float16(0.00819)
 ```
@@ -380,7 +385,7 @@ end
     parse_expression(T::Type{<:AbstractFloat}, expr::Expr; kws...)
 
 Parse a Julia `Expr` to a dynamic `Expression` that can be used to efficiently
-compute [`local_biterror`](@ref)s.
+compute [`local_biterror`](@ref)s. Convenience overload of `DynamicExpressions.parse_expression`.
 """
 function DynamicExpressions.parse_expression(
     T::Type,
@@ -399,6 +404,13 @@ function DynamicExpressions.parse_expression(
         node_type=node_type,
     )
     (; expr=de, features=Dict(v => i for (i, v) in enumerate(vs)))
+end
+
+########## Precompilation ##########################################################################
+
+@compile_workload begin
+    expr = :(sqrt(x + 1) - sqrt(x))
+    alternatives(expr)
 end
 
 end
