@@ -2,9 +2,6 @@ using Documenter
 using DocumenterVitepress
 using OptiFloat
 
-# in repl:
-# V
-
 makedocs(;
     sitename="OptiFloat.jl",
     authors="Niklas Heim",
@@ -19,9 +16,10 @@ makedocs(;
     source="src",
     build="build",
     pages=[
+        "Usage" => "usage.md"
+        "Installation" => "install.md"
         "Under the hood" => "internals.md"
         "API" => "api.md"
-        "Install" => "install.md"
     ],
 )
 

@@ -211,7 +211,7 @@ end # hide
 To avoid excessive branching/overfitting we try to infer better regimes to split the domain.
 ```@example report
 regimes = OptiFloat.infer_regimes(candidates, features["b"], points)
-OptiFloat.print_report(original, regimes; rm_ansi=true)
+OptiFloat.print_report(stdout, original, regimes)
 ```
 
 As we can see, OptiFloat splits the domain close to zero, which is exactly what we want.

@@ -12,7 +12,6 @@ using Metatheory: EGraph, SaturationParams, saturate!, extract!
 using Metatheory.Rewriters: PassThrough, Postwalk
 using Term: Table, Panel, highlight_syntax, remove_ansi
 using Printf: @sprintf
-using PrecompileTools: @setup_workload, @compile_workload
 
 """
     Candidate{E<:Expression,A<:AbstractArray,F<:Function}
@@ -404,13 +403,6 @@ function DynamicExpressions.parse_expression(
         node_type=node_type,
     )
     (; expr=de, features=Dict(v => i for (i, v) in enumerate(vs)))
-end
-
-########## Precompilation ##########################################################################
-
-@compile_workload begin
-    expr = :(sqrt(x + 1) - sqrt(x))
-    alternatives(expr)
 end
 
 end

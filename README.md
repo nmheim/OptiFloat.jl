@@ -7,8 +7,16 @@ OptiFloat.jl rewrites floating point expressions to more accurate alternatives.
 It is a pure **Julia implementation of [Herbie](https://herbie.uwplse.org/)**.
 To learn more about what OptiFloat does, how to use it, and how it works check out the [**documentation**](https://nmheim.github.io/OptiFloat.jl/).
 
+## Install
+
 > [!IMPORTANT]
 > OptiFloat.jl currently requires Julia 1.11.
+
+To install OptiFloat.jl, start `julia`, enter the package REPL via `]` and type
+```julia
+pkg> add https://github.com/nmheim/OptiFloat.jl
+```
+
 
 ## Acknowledgements
 

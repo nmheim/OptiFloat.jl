@@ -1,4 +1,10 @@
-# Installation
+# Install
+
+::: warning Julia 1.11
+
+OptiFloat.jl currently requires Julia 1.11.
+
+:::
 
 To install OptiFloat.jl, start `julia`, enter the package REPL via `]` and type
 ```julia
