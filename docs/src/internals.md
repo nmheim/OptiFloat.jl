@@ -1,17 +1,13 @@
 # Developer documentation
 
-OptiFloat.jl implements the Herbie approach to floating point expression
-optimization. The steps above are roughly what the `@optifloat` macro is doing
-and will be discussed in depth in the rest of this document.
+OptiFloat.jl implements the Herbie approach to floating-point expression
+optimization. The steps below outline what the [`@optifloat`](@ref) macro does.
+Each step will be discussed in detail throughout this document.
 
-1. Given an initial Julia expression `expr`, compute the [`local_biterror`](@ref OptiFloat.local_biterror) of every subexpression and pick the subexpression `sub_expr` with the worst error for further analysis.
-2. Recursively rewrite the `sub_expr` based on a [_set of rewrite rules_](https://github.com/nmheim/OptiFloat.jl/blob/main/src/rules-minus.jl), and simplify with a set of _simplify rules_, generating a number of new [`Candidate`](@ref OptiFloat.Candidate)s.
-3. Keep track of all alternatives to `expr` (and their errors) in a list. Pick the next unused expression from that list and start from step 1. Finish after a number of steps or when all alternatives have been tested.
-4. Finally, infer good _regimes_: There might not be one expression that performs well for all inputs. OptiFloat.jl (like Herbie) infers good intervals for the different alternative expression and produces one compound expression.
-
-
-
-
+1. Given an initial Julia expression `expr`, compute the [`local_biterror`](@ref OptiFloat.local_biterror) of every subexpression and identify the subexpression `sub_expr` with the highest error for further analysis.
+2. Recursively rewrite `sub_expr` based on a [`REWRITE_THEORY`](@ref OptiFloat.REWRITE_THEORY) and simplify it using [`SIMPLIFY_THEORY`](@ref OptiFloat.SIMPLIFY_THEORY), generating a number of new [`Candidate`](@ref OptiFloat.Candidate)s.
+3. Keep track of all alternatives to `expr` (and their associated errors) in a list. Select the next unused expression from that list and start again from step 1. The process concludes after a predefined number of steps or when all alternatives have been tested.
+4. Finally, infer good _regimes_: There may not be a single expression that performs well for all inputs. OptiFloat.jl (like Herbie) infers optimal intervals for the different alternative expressions and produces a compound expression.
 
 ::: details Load packages
 ```@example report
@@ -27,35 +23,17 @@ Random.seed!(1);
 
 ## Local biterror
 
-OptiFloat.jl computes the _biterror_ of an expression by comparing the _exact
+OptiFloat.jl computes the [`biterror`](@ref OptiFloat.biterror) of an expression by comparing the _exact
 result_ of an expression with the 'normal'/'approximate' result (further called
 floating point evaluation).
 
 Exact evaluation of an expression is done by evaluating it with
 `Interval{BigFloat}`s (from
 [IntervalArithmetic.jl](https://github.com/JuliaIntervals/IntervalArithmetic.jl))
-where the precision of the `BigFloat` is increased until a thin result interval
+where the precision of the `BigFloat` is increased until a _thin_ result interval
 is obtained.
 
-::: details Definition of `biterror`
-
-The `biterror` is defined as the logarithm of the ULP-distance (unit at the last
-place) `biterror(x,y) = log2(ulpdistance(x,y))`. For the example above to
-approximately 11 bits:
-
-```@repl
-using OptiFloat
-
-f(x) = sqrt(x+1) - sqrt(x)
-g(x) = 1 / (sqrt(x+1) + sqrt(x))
-
-x = Float16(3730)
-OptiFloat.biterror(f(x), g(x))
-```
-
-:::
-
-The _local_ biterror is computed by exactly evaluating the input arguments to a
+The [`local_biterror`](@ref OptiFloat.local_biterror) is computed by exactly evaluating the input arguments to a
 given node `op` in an expression tree, and computing the biterror between the
 floating point and exact evaluations of `op`. In order to evaluate all the
 operations in an expression tree, we would normally have to walk the tree and
@@ -86,12 +64,11 @@ points = Float16[
 dexpr(points)
 ```
 
-Errors for all sub-expressions:
+`DyanmicExpressions` makes it easy to dynamically evaluate subexpressions without loosing performance.
+We can compute the errors for all sub-expressions:
 ```@example report
 local_errs = OptiFloat.local_biterrors(dexpr, points)
 ```
-
-
 
 
 ## Sample test inputs
@@ -103,7 +80,7 @@ batchsize = 1000
 points = OptiFloat.logsample(dexpr, batchsize; eval_exact=false)
 ```
 
-The `logsample` function generates logarithmic samples to better cover the space
+The [`logsample`](@ref OptiFloat.logsample) function generates logarithmic samples to better cover the space
 of floating point numbers (which are more dense close to zero). We can plot the
 samples on a logarithmic scale which shows that `b` (x-axis) and `c` (y-axis) are not
 sampled where `b^2 - 4c < 0`, because that would result in a `DomainError` in
@@ -139,32 +116,39 @@ end # hide
 
 ## Find better candidate expressions
 
-Create first candidate and kick of `search_candidates!`:
+Create first candidate and kick of [`search_candidates!`](@ref OptiFloat.search_candidates!):
 ```@example report
 original = OptiFloat.Candidate(dexpr, points)
 candidates = [original]
 OptiFloat.search_candidates!(candidates, points)
 ```
 
-This step is powered by [*`Metatheory.jl`*](https://github.com/JuliaSymbolics/Metatheory.jl).
-First, we pick the worst expression based on the `local_errors`. Then the children of this expression
-are (classically) rewritten based on `OptiFloat.REWRITE_RULES`. Subsequently *only the children* of the
-worst expression is simplified via [equality saturation](https://juliasymbolics.github.io/Metatheory.jl/dev/egraphs/).
+This step is powered by
+[*`Metatheory.jl`*](https://github.com/JuliaSymbolics/Metatheory.jl).  First, we
+pick the worst expression based on the [`local_biterrors`](@ref
+OptiFloat.local_biterrors). Then the children of this expression are
+(classically) rewritten based on [`REWRITE_THEORY`](@ref
+OptiFloat.REWRITE_THEORY). Subsequently *only the children* of the worst
+expression are simplified via [equality
+saturation](https://juliasymbolics.github.io/Metatheory.jl/dev/egraphs/).
 
-::: details Inspect created candidates and average error on all `points`.
+Now we have a few candidates, some of which perform much better on some inputs
+than the original expression. For example, the two best expressions in this case are:
+The original: `(-b - sqrt(b^2 - 4c)) / (2c)`
+```@repl report
+candidates[1]
+```
+
+A new candidate: `((4c) / (sqrt(b ^ 2 - 4c) - b)) / (2c)`
+```@repl report
+candidates[16]
+```
+
+::: details Inspect all created candidates and average error on all `points`.
 ```@repl report
 candidates
 ```
 :::
-
-
-Now we have a few candidates, some of which perform much better on some inputs
-than the original expression. If we were to pick the best expression for every
-point, we would end up with a lot of costly if statements, and overfit on the
-`points` that we evaluated the expression with.  For example, the two best
-expressions in this case are:
-- The original: `(-b - sqrt(b^2 - 4c)) / (2c)`
-- A new candidate: `((4c) / (sqrt(b ^ 2 - 4c) - b)) / (2c)`
 
 We can plot the samples again, now with different colors for the expression that performs better:
 
@@ -205,10 +189,13 @@ end # hide
 
 ## Infer good regimes
 
-To avoid excessive branching/overfitting we try to infer better regimes to split the domain.
-```@example report
+If we were to pick the best candidate expression for every point, we would end
+up with a lot of costly if-statements, and overfit on the `points` that we
+evaluated the expression with.  To avoid excessive branching/overfitting we try
+to infer better regimes to split the domain.
+```@ansi report
 regimes = OptiFloat.infer_regimes(candidates, features["b"], points)
-OptiFloat.print_report(original, regimes; rm_ansi=true)
+OptiFloat.print_report(stdout, original, regimes)
 ```
 
 As we can see, OptiFloat splits the domain close to zero, which is exactly what we want.

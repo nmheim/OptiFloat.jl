@@ -1,7 +1,7 @@
 using BenchmarkTools
 using IntervalArithmetic: Interval, interval
 using DynamicExpressions: parse_expression, Node
-using OptiFloat: evaluate_approx, evaluate_exact, biterror, logsample
+using OptiFloat: evaluate_approx, evaluate_exact, biterror, logsample, optifloat
 const SUITE = BenchmarkGroup()
 
 T = BigFloat
@@ -12,6 +12,7 @@ xs = logsample(expr, 10000)
 SUITE["evaluate_approx"] = @benchmarkable evaluate_approx($expr, $xs)
 SUITE["evaluate_exact"] = @benchmarkable evaluate_exact($expr, $xs)
 SUITE["biterror"] = @benchmarkable biterror($expr, $expr, $xs)
+SUITE["optifloat"] = @benchmarkable optifloat(expr, Float16, 1000, 1, false)
 
 @code_warntype evaluate_exact(expr, xs)
 

@@ -2,8 +2,7 @@
 
 ::: warning This package is a work in progress
 
-This package only contains a proof of concept of a few simple examples.
-The following section shows how OptiFloat.jl currently works.
+This package contains only a proof of concept and has not yet been tested on more complex examples.
 
 :::
 
@@ -32,15 +31,9 @@ f(3730.0)
 ```
 
 OptiFloat.jl rewrites this expression to a more accurate equivalent (*using the original, low precision `Float16`!*):
-```@example sqrtexample
-using OptiFloat
-
-result = @optifloat sqrt(x+1)-sqrt(x) T=Float16 batchsize=100
-g = eval(result.improved)
-result.improved
-```
-
 ```@repl sqrtexample
+using OptiFloat
+g = @optifloat sqrt(x+1)-sqrt(x) T=Float16 batchsize=100
 g(Float16(3730))
 ```
 

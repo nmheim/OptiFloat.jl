@@ -1,5 +1,6 @@
 module OptiFloat
 
+export OptiFloatResult
 export @optifloat, optifloat
 
 using DynamicExpressions: Node, AbstractOperatorEnum
@@ -17,7 +18,7 @@ using Printf: @sprintf
 
 Holds an original and a candidate expression, as well as their
 `biterror` and an indication if the candidate has already been used in
-[`search_candidates!`](@ref). Should only be constructed via one of the two
+[`search_candidates!`](@ref) (used: ✓, unused: ⊚). Should only be constructed via one of the two
 constructors below:
 
 - `Candidate(candidate::Expr, original::Expr, points::AbstractMatrix)`
@@ -116,11 +117,11 @@ function format_interval(v, a, b)
 end
 
 """
-    print_report(original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
+    print_report(io::IO, original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
 
 Output a report including a copy-pasteable function representing the `PiecewiseRegime`.
 """
-function print_report(original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
+function print_report(io::IO, original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
     box = rm_ansi ? :ASCII : :ROUNDED
     width = 80
     # table_kws = (; columns_widths=[14, 10, 52], box=box, columns_justify=[:left, :left, :left])
@@ -132,7 +133,7 @@ function print_report(original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
             :Error => [biterror(r) for r in rs.regs],
             :Expression => [toexpr(r.cand) for r in rs.regs],
         );
-        footer=["Combined", "$(biterror(rs))", "%"],
+        footer=length(rs.regs) > 1 ? ["Combined", "$(biterror(rs))", "%"] : nothing,
         footer_justify=[:center, :left, :center],
         table_kws...,
     )
@@ -152,14 +153,14 @@ function print_report(original::Candidate, rs::PiecewiseRegime; rm_ansi=false)
 
     header = Panel("OptiFloat Result"; justify=:center, box=:HORIZONTALS, width=width)
 
-    na_print(x) = println(remove_ansi(string(x)))
-    rm_ansi ? na_print(header) : print(header)
-    println("\n  Original Expression:")
-    rm_ansi ? na_print(orig_panel) : print(orig_panel)
-    println("\n  Optimized PiecewiseRegime:")
-    rm_ansi ? na_print(result_panel) : print(result_panel)
-    println("\n  Final Expression:")
-    rm_ansi ? na_print(expression_panel) : print(expression_panel)
+    na_print(x) = rm_ansi ? println(io, remove_ansi(string(x))) : print(io, x)
+    na_print(header)
+    println(io, "\n  Original Expression:")
+    na_print(orig_panel)
+    println(io, "\n  Optimized PiecewiseRegime:")
+    na_print(result_panel)
+    println(io, "\n  Improved function:")
+    na_print(expression_panel)
 end
 function Base.:(==)(a::PiecewiseRegime, b::PiecewiseRegime)
     length(a.regs) == length(b.regs) && all(ra == rb for (ra, rb) in zip(a.regs, b.regs))
@@ -205,17 +206,17 @@ The first unused candidate will be attempted to improve and new candidate expres
 function search_candidates!(candidates::Vector{<:Candidate}, points::Matrix{T}) where {T}
     candidate = first_unused(candidates)
 
-    @info "Computing local error..."
+    @debug "Computing local error..."
     local_errs = local_biterrors(candidate.cand_expr, points)
-    @info "Errors:" local_errs
+    @debug "Errors:" local_errs
 
     (err, worst_expr) = findmax(local_errs)
-    @info "Optimizing expression with highest local error:" worst_expr err
+    @debug "Optimizing expression with highest local error:" worst_expr err
 
-    @info "Recursive rewrite to obtain new candidate expressions..."
+    @debug "Recursive rewrite to obtain new candidate expressions..."
     alts = recursive_rewrite(candidate.toexpr(worst_expr); depth=2)
 
-    @info "Computing error of new candidates..."
+    @debug "Computing error of new candidates..."
     for (i, alt) in enumerate(alts)
 
         # Replace worst_expr with potentially better expressions
@@ -240,13 +241,14 @@ function search_candidates!(candidates::Vector{<:Candidate}, points::Matrix{T}) 
         end
 
         # Progress printing...
-        print("\e[2K") # clear whole line
-        print("\e[2G") # move cursor to column 1
-        print(" ($i/$(length(alts)))  ")
-        _str = repr(new_candidate)
-        length(_str) > 50 ? print("$(_str[1:50])...") : print(_str)
+        @debug " Candidate ($i/$(length(alts))): $new_candidate"
+        # print("\e[2K") # clear whole line
+        # print("\e[2G") # move cursor to column 1
+        # print(" Candidate ($i/$(length(alts))):  ")
+        # _str = repr(new_candidate)
+        # length(_str) > 50 ? print("$(_str[1:50])...") : print(_str)
     end
-    println("")
+    # println("")
 
     unique!(candidates)
     candidate.used[] = true
@@ -256,18 +258,34 @@ function search_candidates!(candidates::Vector{<:Candidate}, points::Matrix{T}) 
 end
 
 """
-    optifloat(expr::Expr, T::Type, batchsize::Int, steps::Int, verbose::Bool, interval_compatible::Bool)
+    OptiFloatResult{O<:Expr,I<:Expr,C<:Candidate,R<:PiecewiseRegime}
+
+## Fields
+- `original::Expr`: The original expression that was attempted to be optimized.
+- `improved::Expr`: The (potentially) improved expression.
+- `original_candidate::Candidate`: The [`Candidate`](@ref) of the original expression. This
+  struct includes the error on the sampled points.
+- `improved_regimes::PiecewiseRegime`: The struct that was used to generate `improved`.
+"""
+struct OptiFloatResult{O<:Expr,I<:Expr,C<:Candidate,R<:PiecewiseRegime}
+    original::O
+    improved::I
+    original_candidate::C
+    improved_regimes::R
+end
+Base.show(io::IO, x::OptiFloatResult) = print_report(io, x.original_candidate, x.improved_regimes)
+
+"""
+    optifloat(expr::Expr, T::Type, batchsize::Int, steps::Int, interval_compatible::Bool)
 
 The main function of OptiFloat.jl. Optimizes a floating point expression and
 returns a result object which contains an improved expression.
 
 ## Example
-```julia
-using OptiFloat
-
-expr = :(sqrt(x+1) - sqrt(x))
-args = (; T=Float16, batchsize=100, steps=1, verbose=true, interval_compatible=false)
-result = optifloat(expr)
+```julia-repl
+julia> using OptiFloat
+julia> expr = :(sqrt(x+1) - sqrt(x))
+julia> optifloat(expr; T=Float16, batchsize=100, steps=1, interval_compatible=false)
 ```
 
 For more convenient usage, see [`@optifloat`](@ref)
@@ -280,22 +298,19 @@ For more convenient usage, see [`@optifloat`](@ref)
   computed via [`logsample`](@ref) such that only samples which do not cause
   `DomainError`s/overflows are used.
 - `steps::Int`: Number of times [`search_candidates!`](@ref) is called.
-- `verbose::Bool`: Whether to print the final report or not.
 - `interval_compatible::Bool`: If `false` the improved function only accepts normal numbers otherwise
   the `result.improved` will be an expression that accepts `Interval`s. In the latter case you have
   to load `IntervalArithmetic`, otherwise `eval(result.improved)` will fail.
 
 ## Returns
-A `NamedTuple` with the folling fields:
-- `original::Expr`: The original expression that was attempted to be optimized.
-- `improved::Expr`: The (potentially) improved expression.
-- `orig_candidate::Candidate`: The [`Candidate`](@ref) of the original expression. This
-  struct includes the error on the sampled points.
-- `improved_regimes::PiecewiseRegime`: The struct that was used to generate `improved`.
-
+An [`OptiFloatResult`](@ref).
 """
 function optifloat(
-    expr::Expr, T::Type, batchsize::Int, steps::Int, verbose::Bool, interval_compatible::Bool
+    expr::Expr;
+    T::Type=Float16,
+    batchsize::Int=10_000,
+    steps::Int=1,
+    interval_compatible::Bool=false,
 )
     dexpr, features = parse_expression(T, expr)
     points = logsample(dexpr, batchsize; eval_exact=false)
@@ -307,11 +322,8 @@ function optifloat(
     (_, regimes) = map(values(features)) do f
         infer_regimes(candidates, f, points)
     end |> best_regime
-    if verbose
-        print_report(original, regimes)
-    end
     improved = regimes_to_expr(regimes; interval_compatible=interval_compatible)
-    (; original=expr, improved=improved, orig_candidate=original, improved_regimes=regimes)
+    OptiFloatResult(expr, improved, original, regimes)
 end
 
 """
@@ -324,44 +336,32 @@ keyword arguments as [`optifloat`](@ref).
 ## Examples
 ```julia-repl
 julia> using OptiFloat
-julia> result = @optifloat sqrt(x+1) - sqrt(x) T=Float32 batchsize=1000
-julia> g = eval(result.improved)  # callable function
+julia> g = @optifloat sqrt(x+1) - sqrt(x) T=Float16 batchsize=1000
 julia> g(Float16(3730))
 Float16(0.00819)
 ```
 """
 macro optifloat(expr, kws...)
     parsed_kws = _parse_kws(kws)
-    esc(
-        :(optifloat(
-            $(Meta.quot(expr)),
-            $(parsed_kws.T),
-            $(parsed_kws.batchsize),
-            $(parsed_kws.steps),
-            $(parsed_kws.verbose),
-            $(parsed_kws.interval_compatible),
-        )),
-    )
+    res = optifloat(expr; parsed_kws...)
+    res.improved
 end
 
 function _parse_kws(kws)
     # Default values for keyword arguments
-    T = Float32
+    T = Float16
     batchsize = 10_000
     steps = 1
-    verbose = true
     interval_compatible = false
     for kw in kws
         if isexpr(kw) && head(kw) == :(=)
             (name, val) = children(kw)
             if name == :T
-                T = val
+                T = eval(val)
             elseif name == :batchsize
                 batchsize = val
             elseif name == :steps
                 steps = val
-            elseif name == :verbose
-                verbose = val
             elseif name == :interval_compatible
                 interval_compatible = val
             else
@@ -369,7 +369,7 @@ function _parse_kws(kws)
             end
         end
     end
-    (; T, batchsize, steps, verbose, interval_compatible)
+    (; T, batchsize, steps, interval_compatible)
 end
 
 vnames(s::Symbol) = [string(s)]
@@ -384,7 +384,7 @@ end
     parse_expression(T::Type{<:AbstractFloat}, expr::Expr; kws...)
 
 Parse a Julia `Expr` to a dynamic `Expression` that can be used to efficiently
-compute [`local_biterror`](@ref)s.
+compute [`local_biterror`](@ref)s. Convenience overload of `DynamicExpressions.parse_expression`.
 """
 function DynamicExpressions.parse_expression(
     T::Type,
