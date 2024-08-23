@@ -18,6 +18,21 @@ function ulpdistance(a::F, b::F) where {F<:AbstractFloat}
     return abs(a_int - b_int)
 end
 
+"""
+    biterror(x::T, y::T) where {T}
+
+The `biterror` is defined as the logarithm of the ULP-distance (unit at the last
+place) `biterror(x,y) = log2(ulpdistance(x,y))`. For the example above to
+approximately 11 bits:
+
+```julia-repl
+julia> using OptiFloat
+julia> f(x) = sqrt(x+1) - sqrt(x)
+julia> g(x) = 1 / (sqrt(x+1) + sqrt(x))
+julia> x = Float16(3730)
+julia> OptiFloat.biterror(f(x), g(x))
+```
+"""
 function biterror(x::T, y::T) where {T}
     ulp = ulpdistance(x, y)
     T(ulp == 0 ? 0 : log2(ulp))

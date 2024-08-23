@@ -2,7 +2,7 @@
 
 ::: warning This package is a work in progress
 
-This package only contains a proof of concept and is tested not yet tested on more complex examples.
+This package contains only a proof of concept and has not yet been tested on more complex examples.
 
 :::
 

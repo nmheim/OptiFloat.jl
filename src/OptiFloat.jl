@@ -18,7 +18,7 @@ using Printf: @sprintf
 
 Holds an original and a candidate expression, as well as their
 `biterror` and an indication if the candidate has already been used in
-[`search_candidates!`](@ref). Should only be constructed via one of the two
+[`search_candidates!`](@ref) (used: ✓, unused: ⊚). Should only be constructed via one of the two
 constructors below:
 
 - `Candidate(candidate::Expr, original::Expr, points::AbstractMatrix)`

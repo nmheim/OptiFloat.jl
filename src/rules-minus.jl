@@ -629,7 +629,10 @@ theories = (;
     # ]),
 )
 
+"Rules that are used to generate new candidate expressions."
 REWRITE_THEORY = convert(Vector{RewriteRule}, mapreduce(t -> t.rules, ∪, theories))
+
+"Rules that are used to simplify generated candidate expressions. This is a subset of [`REWRITE_THEORY`](@ref)."
 SIMPLIFY_THEORY = convert(
     Vector{RewriteRule}, mapreduce(t -> t.rules, ∪, filter(t -> (:simplify ∈ t.groups), theories))
 )
